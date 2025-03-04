@@ -1,0 +1,225 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+  
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex; 
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+.signup-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Form Styling */
+.signup-form {
+  background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  width: 400px; /* Adjust the form width */
+  max-width: 90%;
+  text-align: center;
+}
+
+/* Form Title */
+.signup-form h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+/* Form Labels */
+.signup-form label {
+  display: block;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+/* Form Inputs */
+.signup-form input {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+/* Submit Button */
+.signup-form button {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  width: 100%;
+  background-color: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.signup-form button:hover {
+  background-color: #535bf2;
+}
+
+/* Login Link */
+.signup-form p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.signup-form a {
+  color: #646cff;
+  text-decoration: none;
+}
+
+.signup-form a:hover {
+  text-decoration: underline;
+}
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10; /* Ensure it is above the background */
+  background: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+}
+
+
+
+
+.login-form {
+  background-color: rgba(0, 0, 0, 0.8); /* Dark transparent background */
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  width: 400px;
+  max-width: 90%;
+  text-align: center;
+  position: relative; /* Make sure it is positioned correctly */
+  z-index: 20; /* Higher than the background */
+  color: white; /* Ensure text is visible */
+}
+
+
+/* Form Title */
+.login-form h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+/* Form Labels */
+.login-form label {
+  display: block;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+/* Form Inputs */
+.login-form input {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+/* Submit Button */
+.login-form button {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  width: 100%;
+  background-color: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.login-form button:hover {
+  background-color: #535bf2;
+}
+
+/* Register Link */
+.login-form p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.login-form a {
+  color: #646cff;
+  text-decoration: none;
+}
+
+.login-form a:hover {
+  text-decoration: underline;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
