@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import "../App.css"; // Ensure styles are applied
+import "../App.css"; // Ensure styles are applied`
 
 const Home = () => {
   return (

@@ -1,38 +1,267 @@
-.App {
-  text-align: center;
+/* ==========================================================================
+   App.css — loaded after any global “body” rules
+   ========================================================================== */
+
+/* 1) Force entire viewport to pure white */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: #ffffff !important;
+  color: #333333;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+/* 2) .app-wrapper: full‐width white container */
+.app-wrapper {
+  background-color: #ffffff !important;
+  color: #333333;
+  width: 100%;
   min-height: 100vh;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
+}
+
+/* 3) Ensure all content inside .app-wrapper is dark */
+.app-wrapper h1,
+.app-wrapper h2,
+.app-wrapper h3,
+.app-wrapper p,
+.app-wrapper a,
+.app-wrapper button {
+  color: #333333;
+}
+.app-wrapper .MuiTypography-root {
+  color: #333333 !important;
+}
+
+/* 4) Link styling inside .app-wrapper */
+.app-wrapper a {
+  color: #0066cc;
+  text-decoration: none;
+  border-bottom: 1px dotted #0066cc;
+}
+.app-wrapper a:hover {
+  border-bottom: 1px solid #0066cc;
+}
+
+/* 5) Button styling inside .app-wrapper */
+.app-wrapper button {
+  background-color: #f9f9f9;
+  border: 1px solid #cccccc;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #333333;
+}
+.app-wrapper button:hover {
+  background-color: #e6e6e6;
+}
+
+/* ==========================================================================
+   Global button reset & HeroBanner override
+   ========================================================================== */
+
+button {
+  background-color: transparent; /* let HeroBanner’s sx={} override it */
+  color: inherit;
+  border: none;
+  outline: none;
+}
+
+.HeroBanner-button {
+  background-color: #FF2625 !important;
+  color: #FFFFFF !important;
+}
+
+/* Prevent the “Exercises” watermark from getting cut off on very small screens */
+@media (max-width: 600px) {
+  .MuiTypography-root[style*="opacity: 0.1"] {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Login Page Styles
+   ========================================================================== */
+
+.login-page {
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  background-color: #ffffff;
 }
 
-.App-link {
-  color: #61dafb;
+.login-form {
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 400px;
+  max-width: 90%;
+  text-align: center;
+  position: relative;
+  z-index: 20;
+  color: #333333;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.login-form h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  color: #333333;
 }
+
+.login-form input {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  color: #333333;
+  background-color: #f9f9f9;
+}
+
+.login-form button {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  width: 100%;
+  background-color: #646cff;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.login-form button:hover {
+  background-color: #535bf2;
+}
+
+.login-form p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #333333;
+}
+
+.login-form a {
+  color: #646cff;
+  text-decoration: none;
+}
+.login-form a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Signup Page Styles
+   ========================================================================== */
+
+.signup-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  background-color: #ffffff;
+}
+
+.signup-form {
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 400px;
+  max-width: 90%;
+  text-align: center;
+  position: relative;
+  z-index: 20;
+  color: #333333;
+}
+
+.signup-form h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  color: #333333;
+}
+
+.signup-form label {
+  display: block;
+  margin-bottom: 1rem;
+  text-align: left;
+  color: #333333;
+  font-size: 1rem;
+}
+
+.signup-form input {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  color: #333333;
+  background-color: #f9f9f9;
+}
+
+.signup-form button {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  width: 100%;
+  background-color: #646cff;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.signup-form button:hover {
+  background-color: #535bf2;
+}
+
+.signup-form p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #333333;
+}
+
+.signup-form a {
+  color: #646cff;
+  text-decoration: none;
+}
+.signup-form a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Landing‐page overrides (if you ever include here instead of index.css)
+   ========================================================================== */
+
+/* .landing-wrapper {
+  background-color: #ffffff;
+  color: #333333;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.landing-wrapper button {
+  background-color: #646cff !important;
+  color: #ffffff !important;
+}
+
+.landing-wrapper .MuiTypography-root {
+  color: #333333 !important;
+} */
