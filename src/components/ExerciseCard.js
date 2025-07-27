@@ -3,6 +3,8 @@ import { Box, Typography, Button, Stack } from '@mui/material';
 import { Link } from 'react-router-dom';
 
 const ExerciseCard = ({ exercise }) => {
+  if (!exercise) return null; 
+
   return (
     <Link className="exercise-card" to={`/exercise/${exercise.id}`}>
       <Box

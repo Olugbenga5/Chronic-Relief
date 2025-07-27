@@ -32,12 +32,14 @@ const ExerciseVideos = ({ exerciseVideos, name }) => {
               alt={item.video.title}
               style={{ borderRadius: '8px', width: '320px', height: '180px' }}
             />
-            <Typography variant="h6" color="#000" mt="8px">
+            <Box>
+            <Typography variant="h5" color="#000" >
               {item.video.title}
             </Typography>
-            <Typography variant="subtitle2" color="gray">
+            <Typography variant="h6" color="gray">
               {item.video.channelName}
             </Typography>
+            </Box>
           </a>
         ))}
       </Stack>

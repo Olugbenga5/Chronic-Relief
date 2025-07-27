@@ -1,15 +1,8 @@
 import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Box, Typography } from '@mui/material';
 import Herobanner from '../assets/images/Herobanner.webp';
 
 function HeroBanner() {
-  const navigate = useNavigate();
-
-  const handleExplore = () => {
-    navigate('/exercises'); 
-  };
-
   return (
     <Box
       sx={{
@@ -40,24 +33,13 @@ function HeroBanner() {
         <Typography fontSize="22px" lineHeight="35px" mb={4}>
           Check out the most effective exercises.
         </Typography>
-
-        {/* ✅ Button now centers on mobile */}
-        <Box sx={{ display: 'flex', justifyContent: { xs: 'center', lg: 'flex-start' } }}>
-          <Button
-            variant="contained"
-            className="landing-btn"
-            onClick={handleExplore}
-          >
-            Explore All Exercises
-          </Button>
-        </Box>
       </Box>
 
       <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
         <Box
           component="img"
           src={Herobanner}
-          alt="hero banner illustration"
+          alt="hero banner"
           sx={{
             width: { xs: '100%', sm: '80%', md: '100%' },
             maxWidth: '600px',

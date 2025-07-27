@@ -3,8 +3,9 @@ import React from 'react';
 import BodyPart from './BodyPart';
 import { ScrollMenu } from 'react-horizontal-scrolling-menu';
 import 'react-horizontal-scrolling-menu/dist/styles.css';
+import ExerciseCard from './ExerciseCard';
 
-const HorizontalScrollbar = ({ data, bodyPart, setBodyPart }) => {
+const HorizontalScrollbar = ({ data, bodyPart, setBodyPart, isBodyParts }) => {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
       <ScrollMenu>
@@ -15,7 +16,7 @@ const HorizontalScrollbar = ({ data, bodyPart, setBodyPart }) => {
             title={item.id || item}
             m="0 20px"
           >
-            <BodyPart item={item} bodyPart={bodyPart} setBodyPart={setBodyPart} />
+            {isBodyParts ? <BodyPart item={item} bodyPart={bodyPart} setBodyPart={setBodyPart} />: <ExerciseCard exercise = {item}/>}
           </Box>
         ))}
       </ScrollMenu>

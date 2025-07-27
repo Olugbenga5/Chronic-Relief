@@ -19,25 +19,23 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
 
   useEffect(() => {
-    const fetchChronicPainExercises = async () => {
-      const chronic = [];
-      const endpoints = ['back', 'upper legs', 'lower legs'];
+   const fetchChronicPainExercises = async () => {
+      try {
+        const data = await fetchData(
+          'https://exercisedb.p.rapidapi.com/exercises?limit=1500',
+          exerciseOptions
+        );
 
-      for (const part of endpoints) {
-        try {
-          const encodedPart = encodeURIComponent(part);
-          const data = await fetchData(
-            `https://exercisedb.p.rapidapi.com/exercises/bodyPart/${encodedPart}`,
-            exerciseOptions
-          );
-          if (Array.isArray(data)) chronic.push(...data);
-        } catch (err) {
-          console.warn(`Failed to load exercises for ${part}:`, err);
-        }
+        const relevantParts = ['back', 'upper legs', 'lower legs'];
+        const chronic = data.filter((ex) =>
+          relevantParts.includes(ex.bodyPart.toLowerCase())
+        );
+
+        setAllChronicExercises(chronic);
+        setExercises(chronic);
+      } catch (err) {
+        console.warn('Failed to load chronic pain exercises:', err);
       }
-
-      setAllChronicExercises(chronic);
-      setExercises(chronic);
     };
 
     fetchChronicPainExercises();
@@ -142,6 +140,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
           data={bodyParts}
           bodyPart={bodyPart}
           setBodyPart={setBodyPart}
+          isBodyParts
         />
       </Box>
     </Stack>

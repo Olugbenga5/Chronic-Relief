@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import "../App.css";
-import { Link } from "react-router-dom";
-import { auth } from "../firebase";  // ✅ Ensure correct import
+import { Link, useNavigate } from "react-router-dom"; 
+import { auth } from "../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const navigate = useNavigate(); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,6 +21,7 @@ const Signup = () => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       alert("Account created successfully!");
+      navigate("/landing");
     } catch (err) {
       alert("Error creating account. Please try again.");
       console.error(err);
