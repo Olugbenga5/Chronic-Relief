@@ -9,15 +9,24 @@ function FaqAsk() {
     if (!q.trim()) return;
     setLoading(true);
     setA("Thinking…");
+
     try {
-      const r = await fetch("https://<your-vercel-project>.vercel.app/api/faq", {
+      const r = await fetch("/api/faq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q }),
       });
+
+      if (!r.ok) {
+        const msg = await r.text();
+        setA(`Server error (${r.status}): ${msg || "Unable to answer."}`);
+        return;
+      }
+
       const data = await r.json();
       setA(data.answer || "No answer.");
     } catch (e) {
+      console.error(e);
       setA("Sorry—something went wrong.");
     } finally {
       setLoading(false);
