@@ -12,7 +12,6 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -43,6 +42,8 @@ const Navbar = () => {
     borderBottom: location.pathname === path ? '3px solid #FF2625' : 'none',
   });
 
+  const isRoutine = location.pathname.startsWith('/routine');
+
   return (
     <Stack
       direction="row"
@@ -67,6 +68,7 @@ const Navbar = () => {
         {!user ? (
           <>
             <Link to="/" style={linkStyle("/")}>Home</Link>
+            <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
             <Link to="/login" style={linkStyle("/login")}>Login</Link>
             <Link to="/signup" style={linkStyle("/signup")}>Sign Up</Link>
           </>
@@ -75,16 +77,14 @@ const Navbar = () => {
             <Link to="/landing" style={linkStyle("/landing")}>Home</Link>
             <Link
               to={selectedArea ? `/routine/${selectedArea}` : '/landing'}
-              style={
-                location.pathname.startsWith("/routine")
-                  ? { ...linkStyle(`/routine/${selectedArea}`), borderBottom: '3px solid #FF2625' }
-                  : linkStyle(`/routine/${selectedArea}`)
-              }
+              style={isRoutine ? { ...linkStyle(`/routine/${selectedArea}`), borderBottom: '3px solid #FF2625' } : linkStyle(`/routine/${selectedArea}`)}
             >
               Routines
             </Link>
-            <Link to="/routine-history" style={linkStyle("/routine-history")}>History</Link>
-            <Link to="/profile" style={linkStyle("/profile")}>Profile</Link>
+            {/* App.js route is /history (not /routine-history) */}
+            <Link to="/history" style={linkStyle("/history")}>History</Link>
+            <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
+            <Link to="/profile" style={linkStyle("/profile")}>Profile</Link> 
             <Button onClick={handleLogout} sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
               Logout
             </Button>

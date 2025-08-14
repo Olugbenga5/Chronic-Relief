@@ -14,6 +14,7 @@ import PainAreaRoutine from "./pages/PainAreaRoutine.js";
 import RoutineHistory from "./pages/RoutineHistory.js";
 import Navbar from "./components/Navbar.js";
 import PrivateRoute from "./components/PrivateRoute";
+import FaqAsk from "./components/FaqAsk.js";
 
 const App = () => (
   <Box
@@ -30,6 +31,7 @@ const App = () => (
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/faq" element={<FaqAsk />} />
 
         <Route
           path="/landing"
