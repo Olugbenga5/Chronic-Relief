@@ -1,9 +1,7 @@
 // App.js
-
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
-
 import "./App.css";
 import Signup from "./pages/Signup.js";
 import Login from "./pages/Login.js";
