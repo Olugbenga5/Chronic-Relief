@@ -1,4 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 // Preloaded suggestions (tweak to fit your app)
 const SUGGESTED = [
@@ -36,15 +47,16 @@ const SUGGESTED = [
   },
 ];
 
-function FaqAsk() {
+export default function FaqAsk() {
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const answerRef = useRef(null);
 
   async function ask(questionOverride) {
     const prompt = (questionOverride ?? q).trim();
-    if (!prompt) return;
+    if (!prompt || loading) return;
 
     setErrorText("");
     setA("Thinking…");
@@ -66,7 +78,9 @@ function FaqAsk() {
 
       const data = await r.json();
       setA(data.answer || "No answer.");
-      if (!questionOverride) setQ(""); // clear manual input after success
+      if (!questionOverride) setQ("");
+      // move focus to the answer block for accessibility
+      setTimeout(() => answerRef.current?.focus(), 0);
     } catch (e) {
       console.error(e);
       setErrorText("Network error");
@@ -76,119 +90,140 @@ function FaqAsk() {
     }
   }
 
+  const copyAnswer = async () => {
+    if (!a) return;
+    try {
+      await navigator.clipboard.writeText(a);
+    } catch {
+      /* no-op */
+    }
+  };
+
+  const clearAll = () => {
+    setQ("");
+    setA("");
+    setErrorText("");
+  };
+
   return (
-    <div
-      className="faq-container"
-      style={{
-        maxWidth: 760,
-        margin: "2rem auto",
-        padding: "1.5rem",
-        background: "#ffffff",
-        borderRadius: 12,
-        border: "1px solid #eee",
-      }}
-    >
-      <h2
-        className="faq-title"
-        style={{ fontSize: "1.6rem", fontWeight: 700, marginBottom: "1rem", color: "#111827" }}
-      >
-        Ask our AI FAQ
-      </h2>
-
-      {/* Suggested question chips */}
-      <div className="faq-suggestions" style={{ marginBottom: "1rem" }}>
-        {SUGGESTED.map((group) => (
-          <div key={group.title} className="faq-group" style={{ marginBottom: ".75rem" }}>
-            <div
-              className="faq-group-title"
-              style={{ fontSize: ".95rem", fontWeight: 600, color: "#374151", marginBottom: ".35rem" }}
-            >
-              {group.title}
-            </div>
-            <div className="faq-chip-row" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {group.items.map((item) => (
-                <button
-                  key={item}
-                  className="faq-chip"
-                  onClick={() => ask(item)}
-                  disabled={loading}
-                  aria-label={`Ask: ${item}`}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    background: "#f9fafb",
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontSize: ".9rem",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1,
-                  }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Ask row */}
-      <div className="faq-ask-row" style={{ display: "flex", gap: 8, margin: "1rem 0" }}>
-        <input
-          className="faq-input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Type your own question…"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) ask();
-          }}
-          style={{
-            flex: 1,
-            padding: ".8rem",
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-          }}
-        />
-        <button
-          onClick={() => ask()}
-          disabled={loading}
-          className="faq-button"
-          style={{
-            padding: ".8rem 1.2rem",
-            backgroundColor: "#111827",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? "Answering..." : "Ask"}
-        </button>
-      </div>
-
-      {errorText && (
-        <div className="faq-error" style={{ color: "#b91c1c", fontWeight: 600, marginBottom: ".5rem" }}>
-          {errorText}
-        </div>
-      )}
-
-      <div
-        className="faq-answer"
-        style={{
-          whiteSpace: "pre-wrap",
-          color: "#111827",
-          background: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          padding: "1rem",
-          borderRadius: 8,
-          minHeight: 64,
+    <Box sx={{ maxWidth: 760, mx: "auto", p: { xs: 2, md: 3 } }}>
+      <Paper
+        elevation={1}
+        sx={{
+          p: { xs: 2, md: 3 },
+          borderRadius: 2,
+          bgcolor: "rgba(0,0,0,0.45)", // fits your dark theme
+          border: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(4px)",
         }}
       >
-        {a}
-      </div>
-    </div>
+        <Typography variant="h4" fontWeight={700} mb={1}>
+          AI‑Powered FAQ
+        </Typography>
+        <Typography variant="body2" color="rgba(255,255,255,0.8)" mb={2}>
+          Ask anything about Chronic Relief: exercises, routines, progress tracking, login/signup, etc.
+        </Typography>
+
+        {/* Suggested chips */}
+        <Stack spacing={1.5} mb={2}>
+          {SUGGESTED.map((group) => (
+            <Box key={group.title}>
+              <Typography
+                variant="subtitle2"
+                sx={{ color: "rgba(255,255,255,0.85)", mb: 0.5, fontWeight: 600 }}
+              >
+                {group.title}
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {group.items.map((item) => (
+                  <Chip
+                    key={item}
+                    label={item}
+                    onClick={() => ask(item)}
+                    disabled={loading}
+                    sx={{
+                      borderColor: "rgba(255,255,255,0.15)",
+                      bgcolor: "rgba(255,255,255,0.07)",
+                      color: "#fff",
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.12)" },
+                    }}
+                    variant="outlined"
+                    clickable
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+
+        {/* Ask row */}
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2}>
+          <TextField
+            fullWidth
+            placeholder="Type your own question…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading) ask();
+            }}
+            inputProps={{ "aria-label": "FAQ question" }}
+            sx={{
+              "& .MuiInputBase-root": {
+                bgcolor: "rgba(255,255,255,0.08)",
+                color: "#fff",
+              },
+            }}
+          />
+          <Button
+            onClick={() => ask()}
+            disabled={loading || !q.trim()}
+            variant="contained"
+            size="large"
+            sx={{ fontWeight: 700 }}
+          >
+            {loading ? <CircularProgress size={22} /> : "Ask"}
+          </Button>
+          <Button onClick={clearAll} disabled={loading} variant="outlined">
+            Clear
+          </Button>
+        </Stack>
+
+        {errorText && (
+          <Typography color="#ffb4b4" fontWeight={700} mb={1}>
+            {errorText}
+          </Typography>
+        )}
+
+        <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.12)" }} />
+
+        {/* Answer */}
+        <Box
+          ref={answerRef}
+          tabIndex={-1}
+          aria-live="polite"
+          sx={{
+            whiteSpace: "pre-wrap",
+            color: "#fff",
+            bgcolor: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            p: 2,
+            borderRadius: 1.5,
+            minHeight: 64,
+          }}
+        >
+          {a || "Ask a question or tap a suggestion above."}
+        </Box>
+
+        <Stack direction="row" spacing={1} mt={1.5} justifyContent="flex-end">
+          <Button onClick={copyAnswer} size="small" variant="text" disabled={!a}>
+            Copy answer
+          </Button>
+        </Stack>
+
+        <Typography variant="caption" sx={{ display: "block", mt: 2, color: "rgba(255,255,255,0.7)" }}>
+          Note: This FAQ helps with app usage and isn’t medical advice.
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
-
-export default FaqAsk;
