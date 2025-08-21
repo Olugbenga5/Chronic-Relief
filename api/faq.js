@@ -10,48 +10,52 @@ export default async function handler(req, res) {
 
   if (!process.env.OPENAI_API_KEY) {
     console.error("❌ Missing OPENAI_API_KEY");
-    return res.status(500).json({ error: "Server misconfigured." });
+    return res.status(500).json({ error: "Server misconfigured (OPENAI_API_KEY)." });
   }
 
-  try {
-    // Parse body (handles raw or already-parsed)
-    let body = req.body;
-    if (!body || typeof body !== "object") {
+  // Parse body (works whether Vercel parsed it or not)
+  let body = req.body;
+  if (!body || typeof body !== "object") {
+    try {
       const raw = await new Promise((resolve, reject) => {
         let data = "";
         req.on("data", (c) => (data += c));
         req.on("end", () => resolve(data));
         req.on("error", reject);
       });
-      try {
-        body = JSON.parse(raw || "{}");
-      } catch {
-        body = {};
-      }
+      body = JSON.parse(raw || "{}");
+    } catch {
+      body = {};
     }
+  }
 
-    const question = String(body.question || "").slice(0, 500).trim();
-    if (!question) return res.status(400).json({ error: "Missing question" });
+  const question = String(body.question || "").slice(0, 500).trim();
+  if (!question) return res.status(400).json({ error: "Missing question" });
 
-    // Optional: verify Firebase user ID token sent from client (Authorization: Bearer <idToken>)
-    let userId = null;
+  // Optional: verify Firebase ID token
+  let userId = null;
+  try {
     const authz = req.headers.authorization || "";
     if (authz.startsWith("Bearer ")) {
       const idToken = authz.slice(7);
-      try {
-        const decoded = await adminAuth.verifyIdToken(idToken);
-        userId = decoded.uid;
-      } catch (_e) {
-        // token invalid/expired – continue anonymously
-      }
+      const decoded = await adminAuth.verifyIdToken(idToken);
+      userId = decoded.uid;
     }
+  } catch (e) {
+    // token invalid/expired – continue anonymously
+  }
 
+  // --- 1) Get answer from OpenAI ---
+  let answer = "Sorry, I don’t have an answer for that yet.";
+  try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.responses.create({
+
+    // Use chat.completions for widest compatibility with SDKs
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_output_tokens: 300,
       temperature: 0.2,
-      input: [
+      max_tokens: 300,
+      messages: [
         {
           role: "system",
           content:
@@ -61,32 +65,33 @@ export default async function handler(req, res) {
       ],
     });
 
-    const answer =
-      response.output_text?.trim() ||
+    answer =
+      completion.choices?.[0]?.message?.content?.trim() ||
       "Sorry, I don’t have an answer for that yet.";
+  } catch (e) {
+    const msg = e?.response?.data?.error?.message || e?.message || String(e);
+    console.error("OpenAI error:", msg);
+    // If OpenAI failed, we still return a 500 to the client
+    if (String(msg).includes("429")) {
+      return res.status(429).json({ error: "We’re getting a lot of questions. Try again soon." });
+    }
+    return res.status(500).json({ error: "FAQ service error (OpenAI)." });
+  }
 
-    // 🔐 Server-side log to Firestore
-    const doc = {
-      userId, // null if anonymous
+  // --- 2) Log to Firestore (don’t block the user if logging fails) ---
+  try {
+    await db.collection("faq_logs").add({
+      userId,
       question,
       answer,
-      source: "faq", // tag feature/source
-      createdAt: new Date(), // server time
+      source: "faq",
+      createdAt: new Date(),
       ua: req.headers["user-agent"] || "",
-    };
-    await db.collection("faq_logs").add(doc);
-
-    return res.status(200).json({ answer });
-  } catch (err) {
-    const msg =
-      err?.response?.data?.error?.message || err?.message || String(err);
-    console.error("FAQ error:", msg);
-
-    if (String(msg).includes("429")) {
-      return res
-        .status(429)
-        .json({ error: "We’re getting a lot of questions. Try again soon." });
-    }
-    return res.status(500).json({ error: "FAQ service error" });
+    });
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error("Firestore log error:", msg);
   }
+
+  return res.status(200).json({ answer });
 }
