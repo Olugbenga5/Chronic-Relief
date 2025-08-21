@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { auth } from "../firebase"; // <-- use your client SDK auth
 
 // Preloaded suggestions (tweak to fit your app)
 const SUGGESTED = [
@@ -63,15 +64,27 @@ export default function FaqAsk() {
     setLoading(true);
 
     try {
+      // Include Firebase ID token if user is signed in
+      const idToken = await auth.currentUser?.getIdToken?.();
+
       const r = await fetch("/api/faq", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({ question: prompt }),
       });
 
       if (!r.ok) {
         const msg = await r.text();
-        setErrorText(`Server error (${r.status})`);
+        if (r.status === 401 || r.status === 403) {
+          setErrorText("You may need to log in again.");
+        } else if (r.status === 429) {
+          setErrorText("We’re getting a lot of questions. Please try again shortly.");
+        } else {
+          setErrorText(`Server error (${r.status})`);
+        }
         setA(msg || "Sorry—unable to answer right now.");
         return;
       }
@@ -112,15 +125,16 @@ export default function FaqAsk() {
         sx={{
           p: { xs: 2, md: 3 },
           borderRadius: 2,
-          bgcolor: "rgba(0,0,0,0.45)", // fits your dark theme
+          // ✅ dark overlay (the previous was a light overlay)
+          bgcolor: "rgba(0,0,0,0.45)",
           border: "1px solid rgba(255,255,255,0.08)",
           backdropFilter: "blur(4px)",
         }}
       >
-        <Typography variant="h4" fontWeight={700} mb={1}>
+        <Typography variant="h4" fontWeight={700} mb={1} sx={{ color: "#fff" }}>
           AI‑Powered FAQ
         </Typography>
-        <Typography variant="body2" color="rgba(255,255,255,0.8)" mb={2}>
+        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }} mb={2}>
           Ask anything about Chronic Relief: exercises, routines, progress tracking, login/signup, etc.
         </Typography>
 
@@ -183,13 +197,13 @@ export default function FaqAsk() {
           >
             {loading ? <CircularProgress size={22} /> : "Ask"}
           </Button>
-          <Button onClick={clearAll} disabled={loading} variant="outlined">
+          <Button onClick={clearAll} disabled={loading} variant="outlined" sx={{ color: "#fff" }}>
             Clear
           </Button>
         </Stack>
 
         {errorText && (
-          <Typography color="#ffb4b4" fontWeight={700} mb={1}>
+          <Typography sx={{ color: "#ffb4b4" }} fontWeight={700} mb={1}>
             {errorText}
           </Typography>
         )}
@@ -215,7 +229,7 @@ export default function FaqAsk() {
         </Box>
 
         <Stack direction="row" spacing={1} mt={1.5} justifyContent="flex-end">
-          <Button onClick={copyAnswer} size="small" variant="text" disabled={!a}>
+          <Button onClick={copyAnswer} size="small" variant="text" disabled={!a} sx={{ color: "#fff" }}>
             Copy answer
           </Button>
         </Stack>

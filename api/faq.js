@@ -1,5 +1,6 @@
 // api/faq.js
 import OpenAI from "openai";
+import { db, adminAuth } from "./_firebaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,17 +8,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!process.env.OPENAI_API_KEY) {
     console.error("❌ Missing OPENAI_API_KEY");
-    return res.status(500).json({
-      error:
-        "Missing OpenAI API key. Set OPENAI_API_KEY in your project environment and redeploy.",
-    });
+    return res.status(500).json({ error: "Server misconfigured." });
   }
 
   try {
-    // Handle both parsed and raw bodies (Vercel Node sometimes doesn't auto-parse)
+    // Parse body (handles raw or already-parsed)
     let body = req.body;
     if (!body || typeof body !== "object") {
       const raw = await new Promise((resolve, reject) => {
@@ -36,8 +33,20 @@ export default async function handler(req, res) {
     const question = String(body.question || "").slice(0, 500).trim();
     if (!question) return res.status(400).json({ error: "Missing question" });
 
-    const openai = new OpenAI({ apiKey });
+    // Optional: verify Firebase user ID token sent from client (Authorization: Bearer <idToken>)
+    let userId = null;
+    const authz = req.headers.authorization || "";
+    if (authz.startsWith("Bearer ")) {
+      const idToken = authz.slice(7);
+      try {
+        const decoded = await adminAuth.verifyIdToken(idToken);
+        userId = decoded.uid;
+      } catch (_e) {
+        // token invalid/expired – continue anonymously
+      }
+    }
 
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.responses.create({
       model: "gpt-4o-mini",
       max_output_tokens: 300,
@@ -46,20 +55,26 @@ export default async function handler(req, res) {
         {
           role: "system",
           content:
-            "You are the Chronic Relief FAQ assistant. Be concise, friendly, and accurate. " +
-            "Only answer questions about the Chronic Relief app (exercises, routines, progress, login, data). " +
-            "If the question is unrelated or medical advice, say you don't know and suggest a next step.",
+            "You are the Chronic Relief FAQ assistant. Be concise and only answer about the app (exercises, routines, progress, login, data). If unsure, say you don't know.",
         },
-        {
-          role: "user",
-          content: question,
-        },
+        { role: "user", content: question },
       ],
     });
 
     const answer =
       response.output_text?.trim() ||
       "Sorry, I don’t have an answer for that yet.";
+
+    // 🔐 Server-side log to Firestore
+    const doc = {
+      userId, // null if anonymous
+      question,
+      answer,
+      source: "faq", // tag feature/source
+      createdAt: new Date(), // server time
+      ua: req.headers["user-agent"] || "",
+    };
+    await db.collection("faq_logs").add(doc);
 
     return res.status(200).json({ answer });
   } catch (err) {
@@ -70,10 +85,8 @@ export default async function handler(req, res) {
     if (String(msg).includes("429")) {
       return res
         .status(429)
-        .json({ error: "We’re getting a lot of questions. Please try again soon." });
+        .json({ error: "We’re getting a lot of questions. Try again soon." });
     }
     return res.status(500).json({ error: "FAQ service error" });
   }
 }
-
-
