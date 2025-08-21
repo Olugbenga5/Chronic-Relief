@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ Missing OPENAI_API_KEY");
+    console.error("Missing OPENAI_API_KEY");
     return res.status(500).json({ error: "Server misconfigured (OPENAI_API_KEY)." });
   }
 
