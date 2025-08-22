@@ -10,7 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { auth } from "../firebase"; // <-- use your client SDK auth
+import { auth } from "../firebase";
 
 // Preloaded suggestions (tweak to fit your app)
 const SUGGESTED = [
@@ -48,6 +48,18 @@ const SUGGESTED = [
   },
 ];
 
+// Simple heuristic: is this a definition/technique question?
+function isDefinitionQuestion(text) {
+  const t = text.trim().toLowerCase();
+  return /^(what is|how (to|do) (do|perform)|form|technique)\b/.test(t);
+}
+
+// Try to extract an exercise name from “what is …”
+function extractNameFromQuestion(text) {
+  const m = text.match(/^what is\s+(.+?)\?*$/i);
+  return (m && m[1]) ? m[1].trim() : text.trim();
+}
+
 export default function FaqAsk() {
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
@@ -64,9 +76,31 @@ export default function FaqAsk() {
     setLoading(true);
 
     try {
-      // Include Firebase ID token if user is signed in
       const idToken = await auth.currentUser?.getIdToken?.();
 
+      // 1) Handle “what is / form / technique” using the glossary-backed endpoint
+      if (isDefinitionQuestion(prompt)) {
+        const nameOrSlug = extractNameFromQuestion(prompt);
+        const r = await fetch("/api/exercise", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body: JSON.stringify({ nameOrSlug }),
+        });
+
+        if (r.ok) {
+          const data = await r.json();
+          setA(data.answer || "No answer.");
+          if (!questionOverride) setQ("");
+          setTimeout(() => answerRef.current?.focus(), 0);
+          return;
+        }
+        // If /api/exercise failed (404 or other), fall through to /api/faq.
+      }
+
+      // 2) Default: ask general FAQ endpoint
       const r = await fetch("/api/faq", {
         method: "POST",
         headers: {
@@ -92,7 +126,6 @@ export default function FaqAsk() {
       const data = await r.json();
       setA(data.answer || "No answer.");
       if (!questionOverride) setQ("");
-      // move focus to the answer block for accessibility
       setTimeout(() => answerRef.current?.focus(), 0);
     } catch (e) {
       console.error(e);
@@ -125,7 +158,6 @@ export default function FaqAsk() {
         sx={{
           p: { xs: 2, md: 3 },
           borderRadius: 2,
-          // ✅ dark overlay (the previous was a light overlay)
           bgcolor: "rgba(0,0,0,0.45)",
           border: "1px solid rgba(255,255,255,0.08)",
           backdropFilter: "blur(4px)",
