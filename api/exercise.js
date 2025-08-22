@@ -1,20 +1,10 @@
-// api/exercise.js
+// /api/exercise.js
 import OpenAI from "openai";
-import { db } from "../api/firebaseAdmin"; 
+import { db } from "./firebaseAdmin"; // <-- fixed path
 
-// normalize: "Pull Up", "pull-up", "pullup" => "pull-up"
+// normalize to a slug so "Pull Up", "pull-up", "pullup" all map
 function toSlug(s = "") {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function fallbackAnswer(ex) {
-  const lines = [];
-  if (ex.description) lines.push(`• What it is: ${ex.description}`);
-  if (ex.targetAreas?.length) lines.push(`• Target areas: ${ex.targetAreas.join(", ")}`);
-  if (ex.helpsWith?.length) lines.push(`• Helps with: ${ex.helpsWith.join(", ")}`);
-  if (ex.mayAggravate?.length) lines.push(`• May aggravate: ${ex.mayAggravate.join(", ")}`);
-  if (ex.safetyNotes?.length) lines.push(`• Safety notes: ${ex.safetyNotes.join(" ")}`);
-  return lines.join("\n") || "No description available.";
 }
 
 export default async function handler(req, res) {
@@ -23,8 +13,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ Missing OPENAI_API_KEY");
+    return res.status(500).json({ error: "Server misconfigured." });
+  }
+
   try {
-    // Parse body (works on Vercel raw body)
+    // Parse body (supports Vercel raw body)
     let body = req.body;
     if (!body || typeof body !== "object") {
       const raw = await new Promise((resolve, reject) => {
@@ -37,85 +32,69 @@ export default async function handler(req, res) {
     }
 
     const nameOrSlug = String(body.nameOrSlug || "").trim();
-    if (!nameOrSlug) return res.status(400).json({ error: "Missing exercise name" });
+    if (!nameOrSlug) {
+      return res.status(400).json({ error: "Missing exercise name" });
+    }
 
     const slug = toSlug(nameOrSlug);
 
-    // 1) by id (slug)
+    // 1) Try by doc id (slug)
     let snap = await db.collection("exercise_glossary").doc(slug).get();
 
-    // 2) exact name
+    // 2) Try exact "name" match
     if (!snap.exists) {
-      const q = await db.collection("exercise_glossary")
-        .where("name", "==", nameOrSlug).limit(1).get();
+      const q = await db
+        .collection("exercise_glossary")
+        .where("name", "==", nameOrSlug)
+        .limit(1)
+        .get();
       if (!q.empty) snap = q.docs[0];
     }
 
-    // 3) alias (case-insensitive)
+    // 3) Last‑chance fuzzy: scan a batch and compare normalized names
     if (!snap.exists) {
-      const all = await db.collection("exercise_glossary").limit(500).get();
-      const term = nameOrSlug.toLowerCase();
-      const aliasHit = all.docs.find((d) => {
-        const aliases = Array.isArray(d.data().aliases)
-          ? d.data().aliases.map((a) => String(a).toLowerCase())
-          : [];
-        return aliases.includes(term);
-      });
-      if (aliasHit) snap = aliasHit;
-    }
-
-    // 4) fuzzy (remove all non-alphanumerics)
-    if (!snap.exists) {
-      const all = await db.collection("exercise_glossary").limit(500).get();
-      const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const batch = await db.collection("exercise_glossary").limit(1000).get();
+      const norm = (s) => s?.toLowerCase().replace(/[^a-z0-9]/g, "");
       const want = norm(nameOrSlug);
-      const hit = all.docs.find((d) => norm(d.data().name) === want);
+      const hit = batch.docs.find((d) => norm(d.data().name) === want);
       if (hit) snap = hit;
     }
 
     if (!snap.exists) {
-      return res.status(404).json({ error: "Exercise not found", searched: nameOrSlug, slug });
+      return res
+        .status(404)
+        .json({ error: "Exercise not found", searched: nameOrSlug, slug });
     }
 
     const ex = snap.data();
 
-    // Build succinct answer via OpenAI; fall back to Firestore-only text if needed
-    let answer = null;
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const response = await openai.responses.create({
-          model: "gpt-4o-mini",
-          temperature: 0.1,
-          max_output_tokens: 320,
-          input: [
-            {
-              role: "system",
-              content:
-                "You are a concise, safety‑aware exercise assistant for the Chronic Relief app. " +
-                "Use ONLY the provided JSON; do not invent data; be brief and bullet the answer.",
-            },
-            {
-              role: "user",
-              content:
-                "Create a short bulleted answer with sections: What it is, Target areas, Helps with, May aggravate, Safety notes. " +
-                "Keep it under ~120 words. JSON:\n" + JSON.stringify(ex, null, 2),
-            },
-          ],
-        });
-        answer = (response.output_text || "").trim() || null;
-      } catch (e) {
-        console.error("OpenAI error:", e?.response?.data || e?.message || e);
-      }
-    } else {
-      console.error("❌ Missing OPENAI_API_KEY");
-    }
+    // Summarize using ONLY our glossary fields
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      max_output_tokens: 320,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a concise, safety‑aware exercise assistant for the Chronic Relief app. " +
+            "Use ONLY the provided JSON; do not invent data; be brief and bullet the answer.",
+        },
+        {
+          role: "user",
+          content:
+            "Create a short bulleted answer with sections: What it is, Target areas, Helps with, May aggravate, Safety notes. " +
+            "Keep it under ~120 words. JSON:\n" + JSON.stringify(ex, null, 2),
+        },
+      ],
+    });
 
-    if (!answer) answer = fallbackAnswer(ex);
-
+    const answer = (response.output_text || "").trim() || "No description available.";
     return res.status(200).json({ ok: true, answer, data: ex, id: snap.id });
   } catch (err) {
-    const detail = err?.response?.data?.error?.message || err?.message || String(err);
+    const detail =
+      err?.response?.data?.error?.message || err?.message || String(err);
     console.error("exercise route error:", detail);
     const status =
       String(detail).includes("429") ? 429 :
