@@ -2,12 +2,11 @@
 import OpenAI from "openai";
 import { db } from "../api/firebaseAdmin"; 
 
-// normalize to a slug so "Pull Up", "pull-up", "pullup" all map
+// normalize: "Pull Up", "pull-up", "pullup" => "pull-up"
 function toSlug(s = "") {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-// simple Firestore-only fallback text, in case OpenAI fails or is missing
 function fallbackAnswer(ex) {
   const lines = [];
   if (ex.description) lines.push(`• What it is: ${ex.description}`);
@@ -25,7 +24,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse body (supports Vercel raw body)
+    // Parse body (works on Vercel raw body)
     let body = req.body;
     if (!body || typeof body !== "object") {
       const raw = await new Promise((resolve, reject) => {
@@ -34,35 +33,25 @@ export default async function handler(req, res) {
         req.on("end", () => resolve(data));
         req.on("error", reject);
       });
-      try {
-        body = JSON.parse(raw || "{}");
-      } catch {
-        body = {};
-      }
+      try { body = JSON.parse(raw || "{}"); } catch { body = {}; }
     }
 
     const nameOrSlug = String(body.nameOrSlug || "").trim();
-    if (!nameOrSlug) {
-      return res.status(400).json({ error: "Missing exercise name" });
-    }
+    if (!nameOrSlug) return res.status(400).json({ error: "Missing exercise name" });
 
     const slug = toSlug(nameOrSlug);
 
-    // -------- Robust lookup pipeline --------
-    // 1) Try by doc id (slug)
+    // 1) by id (slug)
     let snap = await db.collection("exercise_glossary").doc(slug).get();
 
-    // 2) Try exact "name" match
+    // 2) exact name
     if (!snap.exists) {
-      const q = await db
-        .collection("exercise_glossary")
-        .where("name", "==", nameOrSlug)
-        .limit(1)
-        .get();
+      const q = await db.collection("exercise_glossary")
+        .where("name", "==", nameOrSlug).limit(1).get();
       if (!q.empty) snap = q.docs[0];
     }
 
-    // 3) Try alias match (case-insensitive)
+    // 3) alias (case-insensitive)
     if (!snap.exists) {
       const all = await db.collection("exercise_glossary").limit(500).get();
       const term = nameOrSlug.toLowerCase();
@@ -75,7 +64,7 @@ export default async function handler(req, res) {
       if (aliasHit) snap = aliasHit;
     }
 
-    // 4) Fuzzy: compare names after removing ALL non‑alphanumerics
+    // 4) fuzzy (remove all non-alphanumerics)
     if (!snap.exists) {
       const all = await db.collection("exercise_glossary").limit(500).get();
       const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -85,16 +74,13 @@ export default async function handler(req, res) {
     }
 
     if (!snap.exists) {
-      return res
-        .status(404)
-        .json({ error: "Exercise not found", searched: nameOrSlug, slug });
+      return res.status(404).json({ error: "Exercise not found", searched: nameOrSlug, slug });
     }
 
     const ex = snap.data();
 
-    // -------- Build a short, safety‑first answer using only our glossary fields --------
+    // Build succinct answer via OpenAI; fall back to Firestore-only text if needed
     let answer = null;
-
     if (process.env.OPENAI_API_KEY) {
       try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -118,28 +104,22 @@ export default async function handler(req, res) {
           ],
         });
         answer = (response.output_text || "").trim() || null;
-      } catch (err) {
-        console.error("OpenAI error in /api/exercise:", err?.response?.data || err?.message || err);
+      } catch (e) {
+        console.error("OpenAI error:", e?.response?.data || e?.message || e);
       }
     } else {
       console.error("❌ Missing OPENAI_API_KEY");
     }
 
-    if (!answer) {
-      // Fallback purely from Firestore fields so we still return 200
-      answer = fallbackAnswer(ex);
-    }
+    if (!answer) answer = fallbackAnswer(ex);
 
     return res.status(200).json({ ok: true, answer, data: ex, id: snap.id });
   } catch (err) {
-    const detail =
-      err?.response?.data?.error?.message || err?.message || String(err);
+    const detail = err?.response?.data?.error?.message || err?.message || String(err);
     console.error("exercise route error:", detail);
-
     const status =
       String(detail).includes("429") ? 429 :
       String(detail).includes("invalid_api_key") ? 401 : 500;
-
     return res.status(status).json({ error: "Exercise service error", detail });
   }
 }
