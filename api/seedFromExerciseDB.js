@@ -1,5 +1,5 @@
 // api/seedFromExerciseDB.js
-import { db } from "../api/firebaseAdmin";
+import { db } from "./firebaseAdmin";
 
 const API_HOST = "exercisedb.p.rapidapi.com";
 const BASE = `https://${API_HOST}`;

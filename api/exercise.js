@@ -1,6 +1,6 @@
 // /api/exercise.js
 import OpenAI from "openai";
-import { db } from "../api/firebaseAdmin"; // <-- fixed path
+import { db } from "./firebaseAdmin";
 
 // normalize to a slug so "Pull Up", "pull-up", "pullup" all map
 function toSlug(s = "") {
@@ -61,14 +61,11 @@ export default async function handler(req, res) {
     }
 
     if (!snap.exists) {
-      return res
-        .status(404)
-        .json({ error: "Exercise not found", searched: nameOrSlug, slug });
+      return res.status(404).json({ error: "Exercise not found", searched: nameOrSlug, slug });
     }
 
     const ex = snap.data();
 
-    // Summarize using ONLY our glossary fields
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.responses.create({
       model: "gpt-4o-mini",
@@ -84,8 +81,9 @@ export default async function handler(req, res) {
         {
           role: "user",
           content:
-            "Create a short bulleted answer with sections: What it is, Target areas, Helps with, May aggravate, Safety notes. " +
-            "Keep it under ~120 words. JSON:\n" + JSON.stringify(ex, null, 2),
+            "Create a short bulleted answer with sections: What it is, Target areas, Helps with, " +
+            "May aggravate, Safety notes. Keep it under ~120 words. JSON:\n" +
+            JSON.stringify(ex, null, 2),
         },
       ],
     });
@@ -93,8 +91,7 @@ export default async function handler(req, res) {
     const answer = (response.output_text || "").trim() || "No description available.";
     return res.status(200).json({ ok: true, answer, data: ex, id: snap.id });
   } catch (err) {
-    const detail =
-      err?.response?.data?.error?.message || err?.message || String(err);
+    const detail = err?.response?.data?.error?.message || err?.message || String(err);
     console.error("exercise route error:", detail);
     const status =
       String(detail).includes("429") ? 429 :

@@ -1,6 +1,7 @@
 // api/faq.js
 import OpenAI from "openai";
-import { db, adminAuth } from "../api/firebaseAdmin";
+import { db, adminAuth } from "./firebaseAdmin";
+
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
