@@ -1,6 +1,6 @@
 // /api/exercise.js
 import OpenAI from "openai";
-import { db } from "./firebaseAdmin"; // <-- fixed path
+import { db } from "../api/firebaseAdmin"; // <-- fixed path
 
 // normalize to a slug so "Pull Up", "pull-up", "pullup" all map
 function toSlug(s = "") {
