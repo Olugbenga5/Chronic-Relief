@@ -1,48 +1,103 @@
+// api/exercise.js
 import OpenAI from "openai";
-import { db } from "../api/firebaseAdmin";
+import { db } from "./_firebaseAdmin";
+
+// normalize to a slug so "Pull Up", "pull-up", "pullup" all map
+function toSlug(s = "") {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-  const { nameOrSlug } = req.body || {};
-  if (!nameOrSlug) return res.status(400).json({ error: "Missing exercise name" });
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ Missing OPENAI_API_KEY");
+    return res.status(500).json({ error: "Server misconfigured." });
+  }
 
   try {
-    const slug = nameOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    // Parse body (supports raw body on Vercel)
+    let body = req.body;
+    if (!body || typeof body !== "object") {
+      const raw = await new Promise((resolve, reject) => {
+        let data = "";
+        req.on("data", c => (data += c));
+        req.on("end", () => resolve(data));
+        req.on("error", reject);
+      });
+      try { body = JSON.parse(raw || "{}"); } catch { body = {}; }
+    }
+
+    const nameOrSlug = String(body.nameOrSlug || "").trim();
+    if (!nameOrSlug) return res.status(400).json({ error: "Missing exercise name" });
+
+    const slug = toSlug(nameOrSlug);
+
+    // 1) Try by doc id (slug)
     let snap = await db.collection("exercise_glossary").doc(slug).get();
 
+    // 2) Try exact "name" match
     if (!snap.exists) {
-      const q = await db.collection("exercise_glossary").where("name", "==", nameOrSlug).limit(1).get();
+      const q = await db
+        .collection("exercise_glossary")
+        .where("name", "==", nameOrSlug)
+        .limit(1)
+        .get();
       if (!q.empty) snap = q.docs[0];
     }
-    if (!snap.exists) return res.status(404).json({ error: "Exercise not found" });
+
+    // 3) Last‑chance fuzzy: scan a small batch and compare normalized names
+    if (!snap.exists) {
+      const batch = await db.collection("exercise_glossary").limit(50).get();
+      const norm = (s) => s?.toLowerCase().replace(/\s+/g, "");
+      const want = norm(nameOrSlug);
+      const hit = batch.docs.find(d => norm(d.data().name) === want);
+      if (hit) snap = hit;
+    }
+
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Exercise not found" });
+    }
 
     const ex = snap.data();
 
+    // Build a short, safety‑first answer using only our glossary fields
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.1,
-      max_tokens: 300,
+      max_tokens: 320,
       messages: [
         {
           role: "system",
           content:
-            "You are a concise, safety‑aware exercise assistant. Use ONLY the provided JSON and do not invent facts."
+            "You are a concise, safety‑aware exercise assistant for the Chronic Relief app. " +
+            "Use ONLY the provided JSON; do not invent data; be brief and bullet the answer."
         },
         {
           role: "user",
           content:
-            "Create a short, bulleted answer with: What it is, Target areas, Helps with, May aggravate, Safety notes.\n\nJSON:\n" +
-            JSON.stringify(ex, null, 2)
+            "Create a short bulleted answer with sections: What it is, Target areas, Helps with, May aggravate, Safety notes. " +
+            "Keep it under ~120 words. JSON:\n" + JSON.stringify(ex, null, 2)
         }
-      ]
+      ],
     });
 
-    const answer = completion.choices?.[0]?.message?.content?.trim() || "No description available.";
+    const answer =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "No description available.";
+
     return res.status(200).json({ answer, data: ex });
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    const detail =
+      err?.response?.data?.error?.message || err?.message || String(err);
+    console.error("exercise route error:", detail);
     return res.status(500).json({ error: "Exercise service error" });
   }
 }
