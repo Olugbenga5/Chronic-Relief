@@ -1,63 +1,101 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
-import { exerciseOptions, fetchData } from '../services/fetchData';
-import HorizontalScrollbar from './HorizontalScrollbar';
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Button, Stack, TextField, Typography, Alert } from "@mui/material";
+import { exerciseOptions, fetchData } from "../services/fetchData";
+import HorizontalScrollbar from "./HorizontalScrollbar";
 
-const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
-
+const CHRONIC_BODY_PART_LABELS = ["All", "Back", "Knees", "Ankle"];
 const CHRONIC_BODY_PART_MATCHES = {
-  Back: ['back', 'lower back'],   // include lower back for broader coverage
-  Knees: ['upper legs'],
-  Ankle: ['lower legs'],
+  Back: ["back", "lower back"],
+  Knees: ["upper legs"],
+  Ankle: ["lower legs"],
 };
 
 const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
-  const [search, setSearch] = useState('');
-  const [bodyParts] = useState(CHRONIC_BODY_PART_LABELS);
+  const [search, setSearch] = useState("");
   const [allChronicExercises, setAllChronicExercises] = useState([]);
-  const [noResults, setNoResults] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null); // {severity:'error'|'info'|'success', text:string}
+
+  const bodyParts = useMemo(() => CHRONIC_BODY_PART_LABELS, []);
 
   // Initial fetch
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await fetchData(
-          'https://exercisedb.p.rapidapi.com/exercises?limit=1500',
-          exerciseOptions
-        );
 
-        if (!alive) return;
+    const load = async () => {
+      setLoading(true);
+      setMsg(null);
 
-        if (!Array.isArray(data)) {
-          console.error('Exercises API returned non-array:', data);
-          setAllChronicExercises([]);
-          setExercises([]);
-          return;
-        }
+      // Guard: missing key shows actionable hint
+      if (!process.env.REACT_APP_RAPID_API_KEY) {
+        setMsg({
+          severity: "error",
+          text:
+            'Missing REACT_APP_RAPID_API_KEY. Add it to your .env and rebuild (in Vercel: Project → Settings → Environment Variables).',
+        });
+        setLoading(false);
+        return;
+      }
 
-        const relevantParts = ['back', 'lower back', 'upper legs', 'lower legs'];
-        const chronic = data.filter((ex) =>
-          relevantParts.includes((ex.bodyPart || '').toLowerCase())
-        );
+      const data = await fetchData(
+        "https://exercisedb.p.rapidapi.com/exercises?limit=1500",
+        exerciseOptions
+      );
 
-        setAllChronicExercises(chronic);
-        setExercises(chronic);
-      } catch (err) {
-        console.warn('Failed to load chronic pain exercises:', err);
+      if (!alive) return;
+
+      if (!Array.isArray(data)) {
+        setMsg({
+          severity: "error",
+          text:
+            "Could not load exercises from the API. Check the browser console for the exact error (401/429 means your RapidAPI key is missing/invalid or rate‑limited).",
+        });
         setAllChronicExercises([]);
         setExercises([]);
-      } finally {
-        alive && setLoading(false);
+        setLoading(false);
+        return;
       }
-    })();
 
+      const relevantParts = ["back", "lower back", "upper legs", "lower legs"];
+      const chronic = data.filter((ex) =>
+        relevantParts.includes((ex.bodyPart || "").toLowerCase())
+      );
+
+      setAllChronicExercises(chronic);
+      setExercises(chronic);
+      setLoading(false);
+    };
+
+    load();
     return () => {
       alive = false;
     };
   }, [setExercises]);
+
+  // Tab switching
+  useEffect(() => {
+    const normalized = (bodyPart || "all").toLowerCase();
+
+    if (normalized === "all") {
+      setExercises(allChronicExercises);
+    } else {
+      const matchKey = Object.keys(CHRONIC_BODY_PART_MATCHES).find(
+        (k) => k.toLowerCase() === normalized
+      );
+      const matches = matchKey ? CHRONIC_BODY_PART_MATCHES[matchKey] : null;
+
+      if (!matches) {
+        setExercises([]);
+      } else {
+        const filtered = allChronicExercises.filter((ex) =>
+          matches.includes((ex.bodyPart || "").toLowerCase())
+        );
+        setExercises(filtered);
+      }
+    }
+    // clear info line when the tab changes
+    setMsg(null);
+  }, [bodyPart, allChronicExercises, setExercises]);
 
   const handleSearch = () => {
     const q = search.trim().toLowerCase();
@@ -65,95 +103,66 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
     const src = allChronicExercises;
     const filtered = src.filter((ex) => {
-      const name = ex.name?.toLowerCase() || '';
-      const target = ex.target?.toLowerCase() || '';
-      const equip = ex.equipment?.toLowerCase() || '';
-      const part = ex.bodyPart?.toLowerCase() || '';
-      return (
-        name.includes(q) || target.includes(q) || equip.includes(q) || part.includes(q)
-      );
+      const name = ex.name?.toLowerCase() || "";
+      const target = ex.target?.toLowerCase() || "";
+      const equip = ex.equipment?.toLowerCase() || "";
+      const part = ex.bodyPart?.toLowerCase() || "";
+      return name.includes(q) || target.includes(q) || equip.includes(q) || part.includes(q);
     });
 
     setExercises(filtered);
-    setNoResults(filtered.length === 0);
-    window.scrollTo({ top: 1800, behavior: 'smooth' });
+    setMsg(
+      filtered.length === 0
+        ? { severity: "info", text: 'No matches. Try terms like "pull-up", "squat", or "hamstrings".' }
+        : null
+    );
+    window.scrollTo({ top: 1800, behavior: "smooth" });
   };
-
-  // Tab switching
-  useEffect(() => {
-    const normalized = (bodyPart || 'all').toLowerCase();
-
-    if (normalized === 'all') {
-      setExercises(allChronicExercises);
-    } else {
-      const matchKey = Object.keys(CHRONIC_BODY_PART_MATCHES).find(
-        (key) => key.toLowerCase() === normalized
-      );
-      const matches = matchKey ? CHRONIC_BODY_PART_MATCHES[matchKey] : null;
-
-      if (!matches) {
-        console.warn(`No match config for bodyPart: ${bodyPart}`);
-        setExercises([]);
-      } else {
-        const filtered = allChronicExercises.filter((ex) =>
-          matches.includes((ex.bodyPart || '').toLowerCase())
-        );
-        setExercises(filtered);
-      }
-    }
-
-    setNoResults(false); // clear search warning on tab change
-  }, [bodyPart, allChronicExercises, setExercises]);
 
   return (
     <Stack alignItems="center" mt="37px" justifyContent="center" p="20px">
-      <Typography
-        fontWeight={700}
-        sx={{ fontSize: { lg: '44px', xs: '30px' } }}
-        mb="50px"
-        textAlign="center"
-      >
-        Here Are Some Exercises <br />For Chronic Pain Relief
+      <Typography fontWeight={700} sx={{ fontSize: { lg: "44px", xs: "30px" } }} mb="28px" textAlign="center">
+        Here Are Some Exercises <br /> For Chronic Pain Relief
       </Typography>
 
-      <Box position="relative" mb="72px" display="flex" gap={1}>
+      <Box position="relative" mb="20px" display="flex" gap={1} width="100%" justifyContent="center">
         <TextField
           sx={{
             input: { fontWeight: 700 },
-            width: { lg: '800px', xs: '350px' },
-            backgroundColor: '#fff',
-            borderRadius: '40px',
+            width: { lg: "800px", xs: "350px" },
+            backgroundColor: "#fff",
+            borderRadius: "40px",
           }}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder={loading ? 'Loading exercises…' : 'Search exercises by name, target, or equipment'}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          placeholder={loading ? "Loading exercises…" : "Search by name, target, or equipment"}
           type="text"
           disabled={loading}
         />
         <Button
           sx={{
-            backgroundColor: '#FF2625',
-            color: '#fff',
-            textTransform: 'none',
-            width: { lg: '175px', xs: '80px' },
-            fontSize: { lg: '20px', xs: '14px' },
-            height: '56px',
+            backgroundColor: "#FF2625",
+            color: "#fff",
+            textTransform: "none",
+            width: { lg: "175px", xs: "80px" },
+            fontSize: { lg: "20px", xs: "14px" },
+            height: "56px",
           }}
           onClick={handleSearch}
           disabled={loading}
         >
-          {loading ? 'Loading…' : 'Search'}
+          {loading ? "Loading…" : "Search"}
         </Button>
       </Box>
 
-      {noResults && (
-        <Typography color="red" fontSize="16px" mb="20px" textAlign="center">
-          No exercises found. Try using a more common term like "pull-up" or "squat".
-        </Typography>
+      {msg && (
+        <Box mb={2} maxWidth={800} width="100%">
+          <Alert severity={msg.severity}>{msg.text}</Alert>
+        </Box>
       )}
 
-      <Box sx={{ position: 'relative', width: '100%', p: '20px' }}>
+      <Box sx={{ position: "relative", width: "100%", p: "20px" }}>
         <HorizontalScrollbar
           data={bodyParts}
           bodyPart={bodyPart}
