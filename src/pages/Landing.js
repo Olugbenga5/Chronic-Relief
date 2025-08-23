@@ -6,7 +6,7 @@ import HeroBanner from "../components/HeroBanner";
 import { auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { savePainArea, saveRoutine, getPainArea } from "../firebaseHelper";
+import { savePainArea, saveRoutine } from "../firebaseHelper";
 
 const LAST_AREA_KEY = "cr:lastPainArea";
 
@@ -16,50 +16,30 @@ const Landing = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // On auth change, capture user
+  // Keep track of auth state
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser || null);
     });
-    return () => unsub();
+    return () => unsubscribe();
   }, []);
 
-  // Hydrate initial selection from Firebase (if logged in) or localStorage
+  // Hydrate the last selected area from localStorage on first mount
   useEffect(() => {
-    let alive = true;
-
-    const hydrate = async () => {
-      // 1) Try Firebase if signed in and you have getPainArea
-      if (user && typeof getPainArea === "function") {
-        try {
-          const saved = await getPainArea(user.uid);
-          if (alive && saved) {
-            setBodyPart(saved);
-            localStorage.setItem(LAST_AREA_KEY, saved);
-            return;
-          }
-        } catch {
-          // ignore and fall back to localStorage
-        }
-      }
-      // 2) Fallback to localStorage
-      const last = localStorage.getItem(LAST_AREA_KEY);
-      if (alive && last) {
-        setBodyPart(last);
-      }
-    };
-
-    hydrate();
-    return () => {
-      alive = false;
-    };
-  }, [user]);
+    const last = localStorage.getItem(LAST_AREA_KEY);
+    if (last) setBodyPart(last);
+  }, []);
 
   const handleSelectArea = async (area) => {
+    // Update UI + persist
     setBodyPart(area);
     localStorage.setItem(LAST_AREA_KEY, area);
+    if (user) {
+      // fire-and-forget; don’t block UX if this fails
+      savePainArea(user.uid, area).catch(() => {});
+    }
 
-    // Map UI label -> ExerciseDB bodyPart value
+    // Map UI area -> ExerciseDB bodyPart for quick client-side pick
     const bodyPartMap = {
       back: "back",
       knee: "upper legs",
@@ -71,32 +51,37 @@ const Landing = () => {
       return;
     }
 
+    // Try to pick 5 from what we already have loaded
     const filtered = exercises.filter(
       (ex) => String(ex.bodyPart || "").toLowerCase() === validBodyPart
     );
-
     if (filtered.length === 0) {
-      alert(`No exercises found for "${area}".`);
+      // It's okay if nothing is loaded yet—the routine page can generate/fetch.
+      // We still navigate so the user flow continues smoothly.
+      navigate(`/routine/${area}`);
       return;
     }
 
     const selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 5);
 
     if (user && selected.length > 0) {
-      const ids = selected.map((ex) => String(ex.id));
       try {
-        // Persist choice so it sticks next visit
-        if (typeof savePainArea === "function") {
-          await savePainArea(user.uid, area);
-        }
+        const ids = selected.map((ex) => String(ex.id));
         await saveRoutine(user.uid, area, ids);
       } catch {
-        // even if Firebase fails, we still have localStorage
+        // ignore save errors here; routine page can regenerate
       }
-      navigate(`/routine/${area}`);
-    } else {
-      // Not signed in: still navigate using the selection, area persists via localStorage
-      navigate(`/routine/${area}`);
+    }
+
+    navigate(`/routine/${area}`);
+  };
+
+  // Wrapper so SearchExercises tab changes also persist the choice
+  const setBodyPartAndPersist = (bp) => {
+    setBodyPart(bp);
+    if (bp && bp !== "all") {
+      localStorage.setItem(LAST_AREA_KEY, bp);
+      if (user) savePainArea(user.uid, bp).catch(() => {});
     }
   };
 
@@ -130,17 +115,7 @@ const Landing = () => {
       <SearchExercises
         setExercises={setExercises}
         bodyPart={bodyPart}
-        setBodyPart={(bp) => {
-          setBodyPart(bp);
-          // keep localStorage in sync when tabs change
-          if (bp && bp !== "all") {
-            localStorage.setItem(LAST_AREA_KEY, bp);
-            if (user && typeof savePainArea === "function") {
-              // fire and forget; not critical if it fails
-              savePainArea(user.uid, bp).catch(() => {});
-            }
-          }
-        }}
+        setBodyPart={setBodyPartAndPersist}
       />
       <Exercises
         exercises={exercises}
