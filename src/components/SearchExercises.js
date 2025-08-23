@@ -1,153 +1,153 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
-import { exerciseOptions, fetchData } from '../services/fetchData';
-import HorizontalScrollbar from './HorizontalScrollbar';
+import React, { useEffect, useState } from "react";
+import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { exerciseOptions, fetchData } from "../services/fetchData";
+import HorizontalScrollbar from "./HorizontalScrollbar";
 
-const CHRONIC_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
-const MATCHES = {
-  Back: ['back', 'lower back'],
-  Knees: ['upper legs'],
-  Ankle: ['lower legs'],
+const CHRONIC_BODY_PART_LABELS = ["All", "Back", "Knees", "Ankle"];
+const CHRONIC_BODY_PART_MATCHES = {
+  Back: ["back", "lower back"],
+  Knees: ["upper legs"],
+  Ankle: ["lower legs"],
 };
 
-const SearchExercises = ({ setExercises, bodyPart = 'All', setBodyPart }) => {
-  const [search, setSearch] = useState('');
-  const [allChronic, setAllChronic] = useState([]);
+const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
+  const [search, setSearch] = useState("");
+  const [allChronicExercises, setAllChronicExercises] = useState([]);
   const [loading, setLoading] = useState(false);
   const [noResults, setNoResults] = useState(false);
 
-  // Initial fetch (only once)
   useEffect(() => {
-    let mounted = true;
-
+    let alive = true;
     (async () => {
       try {
         setLoading(true);
         const data = await fetchData(
-          'https://exercisedb.p.rapidapi.com/exercises?limit=1500',
+          "https://exercisedb.p.rapidapi.com/exercises?limit=1500",
           exerciseOptions
         );
 
-        if (!mounted) return;
+        if (!alive) return;
 
         if (!Array.isArray(data)) {
-          console.error('Exercises API returned non-array:', data);
-          setAllChronic([]);
+          console.error("[Exercises] API did not return an array:", data);
+          setAllChronicExercises([]);
           setExercises([]);
           return;
         }
 
-        const relevant = ['back', 'lower back', 'upper legs', 'lower legs'];
-        const chronic = data.filter(ex =>
-          relevant.includes((ex.bodyPart || '').toLowerCase())
+        const relevantParts = ["back", "lower back", "upper legs", "lower legs"];
+        const chronic = data.filter((ex) =>
+          relevantParts.includes((ex.bodyPart || "").toLowerCase())
         );
 
-        setAllChronic(chronic);
-        setExercises(chronic); // seed the main list with everything
-      } catch (e) {
-        console.warn('Failed to load exercises:', e);
-        setAllChronic([]);
+        console.log(`[Exercises] Loaded: total=${data.length}, chronic=${chronic.length}`);
+        setAllChronicExercises(chronic);
+        setExercises(chronic);
+      } catch (err) {
+        console.error("[Exercises] Failed to load exercises:", err?.message);
+        setAllChronicExercises([]);
         setExercises([]);
       } finally {
-        mounted && setLoading(false);
+        alive && setLoading(false);
       }
     })();
-
-    return () => { mounted = false; };
+    return () => {
+      alive = false;
+    };
   }, [setExercises]);
 
-  // Filter when a tab/bodyPart changes
-  useEffect(() => {
-    const label = String(bodyPart || 'All').toLowerCase();
-    if (label === 'all') {
-      setExercises(allChronic);
-      setNoResults(false);
-      return;
-    }
-    const key = Object.keys(MATCHES).find(k => k.toLowerCase() === label);
-    const targets = key ? MATCHES[key] : null;
-    if (!targets) {
-      setExercises([]);
-      setNoResults(true);
-      return;
-    }
-    const filtered = allChronic.filter(ex =>
-      targets.includes((ex.bodyPart || '').toLowerCase())
-    );
-    setExercises(filtered);
-    setNoResults(filtered.length === 0);
-  }, [bodyPart, allChronic, setExercises]);
-
+  // search
   const handleSearch = () => {
     const q = search.trim().toLowerCase();
     if (!q) return;
 
-    const filtered = allChronic.filter(ex => {
-      const name = ex.name?.toLowerCase() || '';
-      const target = ex.target?.toLowerCase() || '';
-      const equip = ex.equipment?.toLowerCase() || '';
-      const part = ex.bodyPart?.toLowerCase() || '';
-      return (
-        name.includes(q) || target.includes(q) || equip.includes(q) || part.includes(q)
-      );
+    const filtered = allChronicExercises.filter((ex) => {
+      const n = ex.name?.toLowerCase() || "";
+      const t = ex.target?.toLowerCase() || "";
+      const e = ex.equipment?.toLowerCase() || "";
+      const b = ex.bodyPart?.toLowerCase() || "";
+      return n.includes(q) || t.includes(q) || e.includes(q) || b.includes(q);
     });
 
+    console.log(`[Search] query="${q}", results=${filtered.length}`);
     setExercises(filtered);
     setNoResults(filtered.length === 0);
-    window.scrollTo({ top: 1800, behavior: 'smooth' });
+    // keep the query text so users can tweak it
   };
+
+  // body part tabs
+  useEffect(() => {
+    const normalized = (bodyPart || "all").toLowerCase();
+    if (normalized === "all") {
+      setExercises(allChronicExercises);
+      setNoResults(false);
+      return;
+    }
+
+    const key = Object.keys(CHRONIC_BODY_PART_MATCHES).find(
+      (k) => k.toLowerCase() === normalized
+    );
+    const matches = key ? CHRONIC_BODY_PART_MATCHES[key] : null;
+    if (!matches) {
+      console.warn(`[Tabs] No config for "${bodyPart}"`);
+      setExercises([]);
+      setNoResults(true);
+      return;
+    }
+
+    const filtered = allChronicExercises.filter((ex) =>
+      matches.includes((ex.bodyPart || "").toLowerCase())
+    );
+    console.log(`[Tabs] ${bodyPart} → ${filtered.length} items`);
+    setExercises(filtered);
+    setNoResults(filtered.length === 0);
+  }, [bodyPart, allChronicExercises, setExercises]);
 
   return (
     <Stack alignItems="center" mt="37px" justifyContent="center" p="20px">
-      <Typography
-        fontWeight={700}
-        sx={{ fontSize: { lg: '44px', xs: '30px' } }}
-        mb="50px"
-        textAlign="center"
-      >
+      <Typography fontWeight={700} sx={{ fontSize: { lg: "44px", xs: "30px" } }} mb="24px" textAlign="center">
         Here Are Some Exercises <br />For Chronic Pain Relief
       </Typography>
 
-      <Box position="relative" mb="72px" display="flex" gap={1}>
+      <Box position="relative" mb="24px" display="flex" gap={1}>
         <TextField
           sx={{
             input: { fontWeight: 700 },
-            width: { lg: '800px', xs: '350px' },
-            backgroundColor: '#fff',
-            borderRadius: '40px',
+            width: { lg: "800px", xs: "350px" },
+            backgroundColor: "#fff",
+            borderRadius: "40px",
           }}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder={loading ? 'Loading exercises…' : 'Search exercises by name, target, or equipment'}
-          type="text"
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          placeholder={loading ? "Loading exercises…" : "Search exercises by name, target, or equipment"}
           disabled={loading}
         />
         <Button
           sx={{
-            backgroundColor: '#FF2625',
-            color: '#fff',
-            textTransform: 'none',
-            width: { lg: '175px', xs: '80px' },
-            fontSize: { lg: '20px', xs: '14px' },
-            height: '56px',
+            backgroundColor: "#FF2625",
+            color: "#fff",
+            textTransform: "none",
+            width: { lg: "175px", xs: "80px" },
+            fontSize: { lg: "20px", xs: "14px" },
+            height: "56px",
           }}
           onClick={handleSearch}
           disabled={loading}
         >
-          {loading ? 'Loading…' : 'Search'}
+          {loading ? "Loading…" : "Search"}
         </Button>
       </Box>
 
       {noResults && (
-        <Typography color="red" fontSize="16px" mb="20px" textAlign="center">
-          No exercises found. Try using a more common term like “pull-up” or “squat”.
+        <Typography color="red" fontSize="16px" mb="10px" textAlign="center">
+          No exercises found. Try a broader term like “pull-up” or “squat”.
         </Typography>
       )}
 
-      <Box sx={{ position: 'relative', width: '100%', p: '20px' }}>
+      <Box sx={{ position: "relative", width: "100%", p: "20px" }}>
         <HorizontalScrollbar
-          data={CHRONIC_LABELS}
+          data={CHRONIC_BODY_PART_LABELS}
           bodyPart={bodyPart}
           setBodyPart={setBodyPart}
           isBodyParts

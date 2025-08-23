@@ -1,63 +1,64 @@
-// components/Exercises.js
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Pagination, Stack, Typography } from '@mui/material';
-import ExerciseCard from './ExerciseCard';
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Pagination, Stack, Typography } from "@mui/material";
+import ExerciseCard from "./ExerciseCard";
 
-const Exercises = ({ exercises, setExercises, bodyPart }) => {
+const Exercises = ({ exercises, bodyPart }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const exercisePerPage = 8;
+  const perPage = 8;
 
-  // 1) Filter first
-  const filteredExercises = useMemo(() => {
+  // Filter first (case-insensitive, supports “lower back”)
+  const filtered = useMemo(() => {
     if (!Array.isArray(exercises)) return [];
-    const bp = (bodyPart || 'all').toLowerCase();
-    if (bp === 'all') return exercises;
+    const bp = (bodyPart || "all").toLowerCase();
+    if (bp === "all") return exercises;
 
-    return exercises.filter((ex) =>
-      (bodyPart === 'Back'  && (ex.bodyPart?.toLowerCase() === 'back' || ex.bodyPart?.toLowerCase() === 'lower back')) ||
-      (bodyPart === 'Knees' &&  ex.bodyPart?.toLowerCase() === 'upper legs') ||
-      (bodyPart === 'Ankle' &&  ex.bodyPart?.toLowerCase() === 'lower legs')
-    );
+    const match = (ex) => {
+      const part = (ex.bodyPart || "").toLowerCase();
+      if (bp === "back") return part === "back" || part === "lower back";
+      if (bp === "knees") return part === "upper legs";
+      if (bp === "ankle") return part === "lower legs";
+      return true;
+    };
+
+    return exercises.filter(match);
   }, [exercises, bodyPart]);
 
-  // 2) Reset page whenever dataset or filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [bodyPart, exercises]);
+  // Reset page when dataset or filter changes
+  useEffect(() => setCurrentPage(1), [bodyPart, exercises]);
 
-  // 3) Slice AFTER filtering
-  const indexOfLast = currentPage * exercisePerPage;
-  const indexOfFirst = indexOfLast - exercisePerPage;
-  const pageItems = filteredExercises.slice(indexOfFirst, indexOfLast);
+  const last = currentPage * perPage;
+  const first = last - perPage;
+  const pageItems = filtered.slice(first, last);
 
   const paginate = (_e, value) => {
     setCurrentPage(value);
-    window.scrollTo({ top: 1800, behavior: 'smooth' });
+    window.scrollTo({ top: 1800, behavior: "smooth" });
   };
 
   return (
-    <Box id="exercises" sx={{ mt: { lg: '110px' } }} mt="50px" p="20px">
-      <Typography variant="h3" mb="46px">
+    <Box id="exercises" sx={{ mt: { lg: "110px" } }} mt="50px" p="20px">
+      <Typography variant="h3" mb="24px">
         Showing Results
       </Typography>
 
-      <Stack direction="row" sx={{ gap: { lg: '110px', xs: '50px' } }} flexWrap="wrap" justifyContent="center">
-        {pageItems.length === 0 ? (
+      {/* Debug line: shows how many we actually have in the browser console */}
+      {console.log(`[Exercises] filtered=${filtered.length}, page=${currentPage}/${Math.ceil(filtered.length / perPage) || 1}`)}
+
+      <Stack direction="row" sx={{ gap: { lg: "110px", xs: "50px" } }} flexWrap="wrap" justifyContent="center">
+        {filtered.length === 0 ? (
           <Typography>No exercises found.</Typography>
         ) : (
-          pageItems.map((exercise, idx) => (
-            <ExerciseCard key={exercise.id || idx} exercise={exercise} />
-          ))
+          pageItems.map((ex, i) => <ExerciseCard key={ex.id || i} exercise={ex} />)
         )}
       </Stack>
 
-      <Stack mt="100px" alignItems="center">
-        {filteredExercises.length > exercisePerPage && (
+      <Stack mt="60px" alignItems="center">
+        {filtered.length > perPage && (
           <Pagination
             color="standard"
             shape="rounded"
             page={currentPage}
-            count={Math.ceil(filteredExercises.length / exercisePerPage)}
+            count={Math.ceil(filtered.length / perPage)}
             onChange={paginate}
             size="large"
           />
