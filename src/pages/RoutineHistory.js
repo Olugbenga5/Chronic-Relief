@@ -11,13 +11,10 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import { fetchRoutineHistory } from "../firebaseHelper";
+import { fetchData, exerciseOptions } from "../services/fetchData";
 import { formatDistanceToNow } from "date-fns";
 
-// ✅ use the cached utilities so we don't burn API calls
-import {
-  getAllExercisesCached,
-  getByIdCached,
-} from "../utils/exdbCache";
+const EXDB = "https://exercisedb.p.rapidapi.com";
 
 function stripZeros(s) {
   return String(s || "").replace(/^0+/, "") || "0";
@@ -25,6 +22,14 @@ function stripZeros(s) {
 function pad4(s) {
   const t = stripZeros(s);
   return t.padStart(4, "0");
+}
+function addNameKeys(map, id, name) {
+  const raw = String(id || "");
+  const no0 = stripZeros(raw);
+  const p4 = pad4(raw);
+  [raw, no0, p4].forEach((k) => {
+    if (k && !map.has(k)) map.set(k, name);
+  });
 }
 
 const RoutineHistory = () => {
@@ -42,63 +47,73 @@ const RoutineHistory = () => {
       try {
         setLoading(true);
 
-        // 1) Load user history and the cached exercise catalog
+        // 1) Load user history + bulk exercise catalog
         const [rawHistory, allExercises] = await Promise.all([
           fetchRoutineHistory(currentUser.uid),
-          getAllExercisesCached(),
+          fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions),
         ]);
 
-        // 2) Build a robust lookup: raw id, de-zeroed, and 4-digit padded -> name
+        // 2) Build robust lookup (handles "29" vs "0029")
         const nameById = new Map();
-        (allExercises || []).forEach((ex) => {
-          const raw = String(ex?.id ?? "");
-          const no0 = stripZeros(raw);
-          const p4 = pad4(raw);
-          [raw, no0, p4].forEach((k) => {
-            if (k && !nameById.has(k)) nameById.set(k, ex.name);
-          });
-        });
-
-        // 3) Enrich each history entry with names; fall back to single-id cache if needed
-        const enriched = await Promise.all(
-          (rawHistory || []).map(async (entry) => {
-            const exerciseNames = await Promise.all(
-              (entry.exerciseIds || []).map(async (id) => {
-                const idStr = String(id);
-                const no0 = stripZeros(idStr);
-                const p4 = pad4(idStr);
-
-                let name =
-                  nameById.get(idStr) || nameById.get(no0) || nameById.get(p4);
-
-                if (!name) {
-                  // last resort: fetch this specific exercise via cache (may hit API once)
-                  try {
-                    const ex = await getByIdCached(idStr);
-                    if (ex?.name) {
-                      const raw = String(ex.id);
-                      const no0e = stripZeros(raw);
-                      const p4e = pad4(raw);
-                      [raw, no0e, p4e].forEach((k) =>
-                        nameById.set(k, ex.name)
-                      );
-                      name = ex.name;
-                    }
-                  } catch (_) {}
-                }
-
-                return name || `(Unknown ID: ${id})`;
-              })
-            );
-
-            return {
-              ...entry,
-              exerciseNames,
-            };
-          })
+        (allExercises || []).forEach((ex) =>
+          addNameKeys(nameById, ex?.id, ex?.name)
         );
 
-        setHistory(enriched);
+        // 3) First pass: map names; collect any truly missing ids
+        const missingIds = new Set();
+        const prelim = (rawHistory || []).map((entry) => {
+          const names = (entry.exerciseIds || []).map((id) => {
+            const idStr = String(id);
+            const name =
+              nameById.get(idStr) ||
+              nameById.get(stripZeros(idStr)) ||
+              nameById.get(pad4(idStr));
+            if (!name) missingIds.add(idStr);
+            return name || `(Unknown ID: ${id})`;
+          });
+          return { ...entry, exerciseNames: names };
+        });
+
+        // 4) If any are missing, fetch each by id (small number) and update map
+        if (missingIds.size > 0) {
+          const fetched = await Promise.all(
+            Array.from(missingIds).map(async (idStr) => {
+              try {
+                const ex = await fetchData(
+                  `${EXDB}/exercises/exercise/${encodeURIComponent(
+                    stripZeros(idStr)
+                  )}`,
+                  exerciseOptions
+                );
+                if (ex && ex.id && ex.name) {
+                  addNameKeys(nameById, ex.id, ex.name);
+                  return { idStr, name: ex.name };
+                }
+              } catch (_) {}
+              return { idStr, name: null };
+            })
+          );
+
+          // 5) Second pass: replace unknowns with fetched names where available
+          const fetchedMap = new Map(
+            fetched.filter((f) => f.name).map((f) => [f.idStr, f.name])
+          );
+
+          prelim.forEach((entry) => {
+            entry.exerciseNames = (entry.exerciseIds || []).map((id) => {
+              const idStr = String(id);
+              return (
+                nameById.get(idStr) ||
+                nameById.get(stripZeros(idStr)) ||
+                nameById.get(pad4(idStr)) ||
+                fetchedMap.get(idStr) ||
+                `(Unknown ID: ${id})`
+              );
+            });
+          });
+        }
+
+        setHistory(prelim);
       } catch (err) {
         console.error("Error loading history:", err);
         setHistory([]);
