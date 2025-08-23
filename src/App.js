@@ -1,6 +1,6 @@
 // App.js
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import "./App.css";
 import Signup from "./pages/Signup.js";
@@ -13,24 +13,57 @@ import RoutineHistory from "./pages/RoutineHistory.js";
 import Navbar from "./components/Navbar.js";
 import PrivateRoute from "./components/PrivateRoute";
 import FaqAsk from "./components/FaqAsk.js";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
+
+// Redirect logged-in users who land on "/" -> "/landing"
+function AuthAwareRedirect() {
+  const [ready, setReady] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setIsAuthed(!!u);
+      setReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (isAuthed && location.pathname === "/") {
+      navigate("/landing", { replace: true });
+    }
+  }, [ready, isAuthed, location.pathname, navigate]);
+
+  return null;
+}
 
 const App = () => (
-  <Box
-    sx={{
-      width: "100%",
-      minHeight: "100vh",
-      backgroundColor: "#ffffff",
-    }}
-  >
+  <Box sx={{ width: "100%", minHeight: "100vh", backgroundColor: "#ffffff" }}>
     <Navbar />
+    <AuthAwareRedirect />
 
     <div className="app-wrapper">
       <Routes>
+        {/* Public */}
         <Route path="/" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/faq" element={<FaqAsk />} />
 
+        {/* Make FAQ private */}
+        <Route
+          path="/faq"
+          element={
+            <PrivateRoute>
+              <FaqAsk />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Private */}
         <Route
           path="/landing"
           element={

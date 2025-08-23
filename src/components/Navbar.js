@@ -1,3 +1,4 @@
+// Navbar.js
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Stack, Button } from '@mui/material';
@@ -25,6 +26,8 @@ const Navbar = () => {
         } catch (err) {
           console.error('Failed to fetch selected area:', err);
         }
+      } else {
+        setSelectedArea(null);
       }
     });
     return () => unsubscribe();
@@ -68,7 +71,7 @@ const Navbar = () => {
         {!user ? (
           <>
             <Link to="/" style={linkStyle("/")}>Home</Link>
-            <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
+            {/* FAQ removed from public menu */}
             <Link to="/login" style={linkStyle("/login")}>Login</Link>
             <Link to="/signup" style={linkStyle("/signup")}>Sign Up</Link>
           </>
@@ -77,14 +80,17 @@ const Navbar = () => {
             <Link to="/landing" style={linkStyle("/landing")}>Home</Link>
             <Link
               to={selectedArea ? `/routine/${selectedArea}` : '/landing'}
-              style={isRoutine ? { ...linkStyle(`/routine/${selectedArea}`), borderBottom: '3px solid #FF2625' } : linkStyle(`/routine/${selectedArea}`)}
+              style={
+                isRoutine
+                  ? { ...linkStyle(`/routine/${selectedArea}`), borderBottom: '3px solid #FF2625' }
+                  : linkStyle(`/routine/${selectedArea}`)
+              }
             >
               Routines
             </Link>
-            {/* App.js route is /history (not /routine-history) */}
             <Link to="/history" style={linkStyle("/history")}>History</Link>
             <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
-            <Link to="/profile" style={linkStyle("/profile")}>Profile</Link> 
+            <Link to="/profile" style={linkStyle("/profile")}>Profile</Link>
             <Button onClick={handleLogout} sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
               Logout
             </Button>

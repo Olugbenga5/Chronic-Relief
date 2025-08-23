@@ -16,7 +16,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// only init analytics when supported (avoids SSR errors)
 isSupported().then((ok) => { if (ok) getAnalytics(app); });
 
 const auth = getAuth(app);
