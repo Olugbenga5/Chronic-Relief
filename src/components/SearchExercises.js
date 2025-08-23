@@ -6,84 +6,103 @@ import HorizontalScrollbar from './HorizontalScrollbar';
 const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
 
 const CHRONIC_BODY_PART_MATCHES = {
-  Back: ['back'],
+  Back: ['back', 'lower back'],   // include lower back for broader coverage
   Knees: ['upper legs'],
   Ankle: ['lower legs'],
 };
 
 const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
   const [search, setSearch] = useState('');
-  const [bodyParts, setBodyParts] = useState(CHRONIC_BODY_PART_LABELS);
+  const [bodyParts] = useState(CHRONIC_BODY_PART_LABELS);
   const [allChronicExercises, setAllChronicExercises] = useState([]);
-  const [noResults, setNoResults] = useState(false); 
+  const [noResults, setNoResults] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-
+  // Initial fetch
   useEffect(() => {
-   const fetchChronicPainExercises = async () => {
+    let alive = true;
+    (async () => {
       try {
+        setLoading(true);
         const data = await fetchData(
           'https://exercisedb.p.rapidapi.com/exercises?limit=1500',
           exerciseOptions
         );
 
-        const relevantParts = ['back', 'upper legs', 'lower legs'];
+        if (!alive) return;
+
+        if (!Array.isArray(data)) {
+          console.error('Exercises API returned non-array:', data);
+          setAllChronicExercises([]);
+          setExercises([]);
+          return;
+        }
+
+        const relevantParts = ['back', 'lower back', 'upper legs', 'lower legs'];
         const chronic = data.filter((ex) =>
-          relevantParts.includes(ex.bodyPart.toLowerCase())
+          relevantParts.includes((ex.bodyPart || '').toLowerCase())
         );
 
         setAllChronicExercises(chronic);
         setExercises(chronic);
       } catch (err) {
         console.warn('Failed to load chronic pain exercises:', err);
+        setAllChronicExercises([]);
+        setExercises([]);
+      } finally {
+        alive && setLoading(false);
       }
-    };
+    })();
 
-    fetchChronicPainExercises();
+    return () => {
+      alive = false;
+    };
   }, [setExercises]);
 
   const handleSearch = () => {
-    if (search && allChronicExercises.length > 0) {
-      const filtered = allChronicExercises.filter(
-        (ex) =>
-          ex.name.toLowerCase().includes(search) ||
-          ex.target.toLowerCase().includes(search) ||
-          ex.equipment.toLowerCase().includes(search) ||
-          ex.bodyPart.toLowerCase().includes(search)
-      );
+    const q = search.trim().toLowerCase();
+    if (!q) return;
 
-      setSearch('');
-      setExercises(filtered);
-      setNoResults(filtered.length === 0); 
-      window.scrollTo({ top: 1800, left: 100, behavior: 'smooth' });
-    }
+    const src = allChronicExercises;
+    const filtered = src.filter((ex) => {
+      const name = ex.name?.toLowerCase() || '';
+      const target = ex.target?.toLowerCase() || '';
+      const equip = ex.equipment?.toLowerCase() || '';
+      const part = ex.bodyPart?.toLowerCase() || '';
+      return (
+        name.includes(q) || target.includes(q) || equip.includes(q) || part.includes(q)
+      );
+    });
+
+    setExercises(filtered);
+    setNoResults(filtered.length === 0);
+    window.scrollTo({ top: 1800, behavior: 'smooth' });
   };
 
+  // Tab switching
   useEffect(() => {
-    const normalized = bodyPart.toLowerCase();
+    const normalized = (bodyPart || 'all').toLowerCase();
 
     if (normalized === 'all') {
       setExercises(allChronicExercises);
     } else {
       const matchKey = Object.keys(CHRONIC_BODY_PART_MATCHES).find(
-        key => key.toLowerCase() === normalized
+        (key) => key.toLowerCase() === normalized
       );
-
-      const matches = CHRONIC_BODY_PART_MATCHES[matchKey];
+      const matches = matchKey ? CHRONIC_BODY_PART_MATCHES[matchKey] : null;
 
       if (!matches) {
-        console.warn(` No match config for bodyPart: ${bodyPart}`);
+        console.warn(`No match config for bodyPart: ${bodyPart}`);
         setExercises([]);
-        return;
+      } else {
+        const filtered = allChronicExercises.filter((ex) =>
+          matches.includes((ex.bodyPart || '').toLowerCase())
+        );
+        setExercises(filtered);
       }
-
-      const filtered = allChronicExercises.filter((ex) =>
-        matches.includes(ex.bodyPart.toLowerCase())
-      );
-      setExercises(filtered);
     }
 
-    // Clear search warning if they change tab
-    setNoResults(false);
+    setNoResults(false); // clear search warning on tab change
   }, [bodyPart, allChronicExercises, setExercises]);
 
   return (
@@ -97,19 +116,20 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
         Here Are Some Exercises <br />For Chronic Pain Relief
       </Typography>
 
-      <Box position="relative" mb="72px">
+      <Box position="relative" mb="72px" display="flex" gap={1}>
         <TextField
           sx={{
-            input: { fontWeight: '700' },
+            input: { fontWeight: 700 },
             width: { lg: '800px', xs: '350px' },
             backgroundColor: '#fff',
             borderRadius: '40px',
           }}
-          height="76px"
           value={search}
-          onChange={(e) => setSearch(e.target.value.toLowerCase())}
-          placeholder="Search exercises by name, target, or equipment"
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          placeholder={loading ? 'Loading exercises…' : 'Search exercises by name, target, or equipment'}
           type="text"
+          disabled={loading}
         />
         <Button
           sx={{
@@ -119,15 +139,13 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
             width: { lg: '175px', xs: '80px' },
             fontSize: { lg: '20px', xs: '14px' },
             height: '56px',
-            position: 'absolute',
-            right: '0',
           }}
           onClick={handleSearch}
+          disabled={loading}
         >
-          Search
+          {loading ? 'Loading…' : 'Search'}
         </Button>
       </Box>
-
 
       {noResults && (
         <Typography color="red" fontSize="16px" mb="20px" textAlign="center">
