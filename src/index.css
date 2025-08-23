@@ -1,13 +1,8 @@
-/* ==========================================================================
-   Global resets & theming
-   ========================================================================== */
-
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  /* Force a light‐only theme with white background & dark text */
   color-scheme: light;
   color: #333333;
   background-color: #ffffff;
@@ -18,9 +13,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -31,23 +24,18 @@ body {
   color: #333333;
 }
 
-/* Links */
 a {
   font-weight: 500;
   color: #646cff;
   text-decoration: none;
 }
-a:hover {
-  color: #535bf2;
-}
+a:hover { color: #535bf2; }
 
-/* Headings */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
-/* Buttons (global fallback) */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -59,23 +47,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
-  border-color: #646cff;
-}
+button:hover { border-color: #646cff; }
 button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
 
-/* ==========================================================================
-   Landing page overrides
-   ========================================================================== */
-/* ✅ Force red for "Chronic Relief" header */
-.landing-wrapper .chronic-header {
-  color: #FF2625 !important;
-}
-
-/* ✅ Red styling for the button */
+.landing-wrapper .chronic-header { color: #FF2625 !important; }
 .landing-wrapper .landing-btn {
   background-color: #FF2625 !important;
   color: #fff !important;
@@ -83,15 +59,15 @@ button:focus-visible {
   border-radius: 8px;
   text-transform: none;
 }
+.landing-wrapper .landing-btn:hover { background-color: #e63946 !important; }
 
-.landing-wrapper .landing-btn:hover {
-  background-color: #e63946 !important;
+.logo-text {
+  background: linear-gradient(90deg, #9aa5ff 0%, #70e1f5 50%, #b9fbc0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-
-/* ==========================================================================
-   Signup page
-   ========================================================================== */
 
 .signup-page {
   display: flex;
@@ -100,27 +76,29 @@ button:focus-visible {
   width: 100vw;
   height: 100vh;
   position: absolute;
-  top: 0;
-  left: 0;
-  background-color: #ffffff; /* solid white behind form */
+  top: 0; left: 0;
+  background-color: #ffffff;
   z-index: 10;
 }
-
 .signup-form {
-  background-color: #ffffff;      /* white form box */
+  background-color: #ffffff;
   border: 1px solid #cccccc;
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   width: 400px;
   max-width: 90%;
   text-align: center;
   z-index: 20;
   color: #333333;
 }
-
 .signup-form h2 { color: #333333; }
-.signup-form label { color: #333333; text-align: left; display: block; margin-bottom: 1rem; }
+.signup-form label {
+  color: #333333;
+  text-align: left;
+  display: block;
+  margin-bottom: 1rem;
+}
 .signup-form input {
   width: 100%;
   padding: 0.8rem;
@@ -136,57 +114,132 @@ button:focus-visible {
   background-color: #646cff;
   color: #fff;
 }
-.signup-form button:hover {
-  background-color: #535bf2;
-}
+.signup-form button:hover { background-color: #535bf2; }
 
-/* ==========================================================================
-   Login page
-   ========================================================================== */
 
 .login-page {
+  min-height: calc(100vh - 140px);
   display: flex;
-  justify-content: center;
   align-items: center;
-  width: 100vw;
-  height: 100vh;
-  position: absolute;
-  top: 0;
-  left: 0;
-  background-color: #ffffff; /* solid white behind form */
+  justify-content: center;
+  padding: 24px;
+  position: relative;
   z-index: 10;
+  background:
+    radial-gradient(900px 340px at 10% 0%, rgba(100,108,255,0.12), transparent 60%),
+    radial-gradient(700px 300px at 90% 10%, rgba(185,251,192,0.16), transparent 60%),
+    linear-gradient(180deg, #ffffff, #fafafa);
 }
 
 .login-form {
-  background-color: #ffffff;
-  border: 1px solid #cccccc;
+  width: min(420px, 92vw);
+  margin: 0 auto;
+  background: rgba(255,255,255,0.92);
+  color: #111;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 16px;
+  padding: 26px 24px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.12);
+  backdrop-filter: blur(6px);
+}
+.login-form h2 {
+  margin: 0 0 12px;
+  font-size: clamp(22px, 3.5vw, 26px);
+  font-weight: 900;
+  letter-spacing: -0.2px;
+  color: #333333;
+}
+.login-form label {
+  display: block;
+  margin: 14px 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+.login-form input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid #d8dbe1;
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fff;
+  color: #111;
+  transition: box-shadow .2s ease, border-color .2s ease, transform .02s ease;
+}
+.login-form input:focus {
+  outline: none;
+  border-color: #646cff;
+  box-shadow: 0 0 0 4px rgba(100,108,255,0.18);
+}
+.login-form button {
+  margin-top: 18px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #646cff;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
+}
+.login-form button:hover { background: #535bf2; }
+.login-form button:active { transform: translateY(1px); }
+.login-form p {
+  margin-top: 14px;
+  font-size: .95rem;
+  color: #4b5563;
+}
+.login-form a {
+  color: #646cff;
+  text-decoration: none;
+  font-weight: 700;
+}
+.login-form a:hover { text-decoration: underline; }
+
+@media (max-width: 420px) {
+  .login-form { padding: 22px 18px; }
+}
+
+.home-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  min-height: calc(100vh - 140px);
   padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 400px;
-  max-width: 90%;
   text-align: center;
-  z-index: 20;
+
+  background:
+    radial-gradient(circle at top left, rgba(100,108,255,0.15), transparent 60%),
+    radial-gradient(circle at bottom right, rgba(185,251,192,0.15), transparent 60%);
+}
+
+.home-container h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(32px, 6vw, 52px);
+  font-weight: 900;
+  color: #000;                  
+  text-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.home-container > p {
+  max-width: 700px;
+  font-size: clamp(16px, 2.5vw, 20px);
+  margin-bottom: 1.5rem;
+  opacity: 0.85;
   color: #333333;
 }
 
-.login-form h2 { color: #333333; }
-.login-form label { color: #333333; text-align: left; display: block; margin-bottom: 1rem; }
-.login-form input {
-  width: 100%;
-  padding: 0.8rem;
-  margin-top: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  color: #333333;
-}
-.login-form button {
-  margin-top: 1rem;
-  width: 100%;
-  background-color: #646cff;
-  color: #fff;
-}
-.login-form button:hover {
-  background-color: #535bf2;
+.home-content {
+  background: rgba(255,255,255,0.95);
+  color: #111;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  max-width: 700px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  font-size: 1.1rem;
+  line-height: 1.5;
 }

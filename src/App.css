@@ -1,8 +1,4 @@
-/* ==========================================================================
-   App.css — loaded after any global “body” rules
-   ========================================================================== */
 
-/* 1) Force entire viewport to pure white */
 body {
   margin: 0;
   padding: 0;
@@ -13,7 +9,6 @@ body {
   line-height: 1.5;
 }
 
-/* 2) .app-wrapper: full‐width white container */
 .app-wrapper {
   background-color: #ffffff !important;
   color: #333333;
@@ -24,7 +19,6 @@ body {
   flex-direction: column;
 }
 
-/* 3) Ensure all content inside .app-wrapper is dark */
 .app-wrapper h1,
 .app-wrapper h2,
 .app-wrapper h3,
@@ -37,7 +31,6 @@ body {
   color: #333333 !important;
 }
 
-/* 4) Link styling inside .app-wrapper */
 .app-wrapper a {
   color: #0066cc;
   text-decoration: none;
@@ -47,7 +40,6 @@ body {
   border-bottom: 1px solid #0066cc;
 }
 
-/* 5) Button styling inside .app-wrapper */
 .app-wrapper button {
   background-color: #f9f9f9;
   border: 1px solid #cccccc;
@@ -61,12 +53,9 @@ body {
   background-color: #e6e6e6;
 }
 
-/* ==========================================================================
-   Global button reset & HeroBanner override
-   ========================================================================== */
 
 button {
-  background-color: transparent; /* let HeroBanner’s sx={} override it */
+  background-color: transparent; 
   color: inherit;
   border: none;
   outline: none;
@@ -77,16 +66,12 @@ button {
   color: #FFFFFF !important;
 }
 
-/* Prevent the “Exercises” watermark from getting cut off on very small screens */
 @media (max-width: 600px) {
   .MuiTypography-root[style*="opacity: 0.1"] {
     display: none;
   }
 }
 
-/* ==========================================================================
-   Login Page Styles
-   ========================================================================== */
 
 .login-page {
   display: flex;
@@ -161,9 +146,6 @@ button {
   text-decoration: underline;
 }
 
-/* ==========================================================================
-   Signup Page Styles
-   ========================================================================== */
 
 .signup-page {
   display: flex;
@@ -246,22 +228,4 @@ button {
   text-decoration: underline;
 }
 
-/* ==========================================================================
-   Landing‐page overrides (if you ever include here instead of index.css)
-   ========================================================================== */
 
-/* .landing-wrapper {
-  background-color: #ffffff;
-  color: #333333;
-  min-height: 100vh;
-  padding: 2rem;
-}
-
-.landing-wrapper button {
-  background-color: #646cff !important;
-  color: #ffffff !important;
-}
-
-.landing-wrapper .MuiTypography-root {
-  color: #333333 !important;
-} */
