@@ -1,19 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { Box, Typography, Button, Stack } from "@mui/material";
 import { Link } from "react-router-dom";
+import FavoriteButton from "./FavoriteButton"; 
 
 const cap = (s) =>
   s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : "";
 
 const ExerciseCard = ({ exercise }) => {
-  // 🔒 Always call hooks first, unconditionally
   const [imgError, setImgError] = useState(false);
 
-  // Safe reads (handle undefined exercise without branching before hooks)
   const id = exercise?.id ?? exercise?._id ?? "";
   const name = cap(exercise?.name || "Exercise");
   const bodyPart = cap(exercise?.bodyPart || "");
   const target = cap(exercise?.target || "");
+  const equipment = cap(exercise?.equipment || "");
+  const gifUrl = exercise?.gifUrl || ""; 
 
   // Env key (supports Vite and CRA)
   const rapidKey =
@@ -21,43 +22,54 @@ const ExerciseCard = ({ exercise }) => {
     process.env.REACT_APP_RAPID_API_KEY ||
     "";
 
-  // Build STABLE image URL from /image endpoint (don’t use exercise.gifUrl)
-  const resolution = "360"; // 180 | 360 | 720 | 1080 (plan-dependent)
+  const resolution = "360"; 
   const imgSrc = useMemo(() => {
-    if (!id || !rapidKey) return "";
+    if (!id || !rapidKey) return gifUrl || "";
     return `https://exercisedb.p.rapidapi.com/image?exerciseId=${encodeURIComponent(
       id
     )}&resolution=${resolution}&rapidapi-key=${encodeURIComponent(rapidKey)}`;
-  }, [id, rapidKey]);
+  }, [id, rapidKey, gifUrl]);
 
-  // You can return null AFTER hooks (order is still consistent)
-  if (!exercise) return null;
+  if (!exercise || !id) return null;
+
+  const favPayload = {
+    id: String(id),
+    name,
+    bodyPart,
+    target,
+    equipment,
+    gifUrl: imgSrc || gifUrl || "",
+  };
 
   return (
-    <Link
+    <Box
       className="exercise-card"
-      to={`/exercise/${id}`}
-      style={{ textDecoration: "none" }}
-      aria-label={`Open details for ${name}`}
+      sx={{
+        width: 260,
+        border: "1px solid #e7e7e7",
+        borderRadius: "12px",
+        p: "12px",
+        mb: "20px",
+        textAlign: "center",
+        bgcolor: "#f8f8f8",
+        transition: "transform .2s, border-top-color .2s",
+        position: "relative",
+        borderTop: "4px solid transparent",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          borderTop: "4px solid #ff2625",
+          boxShadow: "0 6px 20px rgba(0,0,0,.08)",
+        },
+      }}
     >
-      <Box
-        sx={{
-          width: 260,
-          border: "1px solid #e7e7e7",
-          borderRadius: "12px",
-          p: "12px",
-          mb: "20px",
-          textAlign: "center",
-          bgcolor: "#f8f8f8",
-          transition: "transform .2s, border-top-color .2s",
-          position: "relative",
-          borderTop: "4px solid transparent",
-          "&:hover": {
-            transform: "translateY(-2px)",
-            borderTop: "4px solid #ff2625",
-            boxShadow: "0 6px 20px rgba(0,0,0,.08)",
-          },
-        }}
+      <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}>
+        <FavoriteButton exercise={favPayload} />
+      </Box>
+
+      <Link
+        to={`/exercise/${id}`}
+        style={{ textDecoration: "none", display: "block" }}
+        aria-label={`Open details for ${name}`}
       >
         {!imgError && imgSrc ? (
           <img
@@ -147,8 +159,8 @@ const ExerciseCard = ({ exercise }) => {
         >
           {name}
         </Typography>
-      </Box>
-    </Link>
+      </Link>
+    </Box>
   );
 };
 

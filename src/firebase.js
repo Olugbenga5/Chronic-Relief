@@ -11,14 +11,15 @@ const firebaseConfig = {
   storageBucket: "chronicrelief-1e8ef.firebasestorage.app",
   messagingSenderId: "428612452294",
   appId: "1:428612452294:web:7d21edb36cdb04a38e7cc7",
-  measurementId: "G-9YG2CY7F84"
+  measurementId: "G-9YG2CY7F84",
 };
 
 const app = initializeApp(firebaseConfig);
 
-isSupported().then((ok) => { if (ok) getAnalytics(app); });
+// Avoid analytics errors in non-browser envs
+isSupported().then((ok) => {
+  if (ok) getAnalytics(app);
+});
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-export { auth, db };
+export const auth = getAuth(app);
+export const db = getFirestore(app);
