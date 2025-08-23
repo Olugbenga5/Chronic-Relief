@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Box, Typography, Button, Stack } from "@mui/material";
 import { Link } from "react-router-dom";
 
@@ -6,41 +6,30 @@ const cap = (s) =>
   s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : "";
 
 const ExerciseCard = ({ exercise }) => {
-  const [imgSrc, setImgSrc] = useState("");
-  const [triedProxy, setTriedProxy] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // sanitize incoming URL
-  const rawUrl = exercise?.gifUrl ?? "";
-  const safeUrl = useMemo(
-    () =>
-      rawUrl.startsWith("http://")
-        ? rawUrl.replace(/^http:\/\//, "https://")
-        : rawUrl,
-    [rawUrl]
-  );
+  if (!exercise) return null;
 
+  // Use id from API (fallback to _id if your DB stored it differently)
   const id = exercise?.id ?? exercise?._id ?? "";
   const name = cap(exercise?.name || "Exercise");
   const bodyPart = cap(exercise?.bodyPart || "");
   const target = cap(exercise?.target || "");
 
-  useEffect(() => {
-    setImgSrc(safeUrl || "");
-    setImgError(false);
-    setTriedProxy(false);
-  }, [safeUrl]);
+  // Read RapidAPI key from env (supports Vite and CRA)
+  const rapidKey =
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_RAPID_API_KEY) ||
+    process.env.REACT_APP_RAPID_API_KEY ||
+    "";
 
-  if (!exercise) return null;
-
-  const onImgError = () => {
-    if (!triedProxy && safeUrl) {
-      setTriedProxy(true);
-      setImgSrc(`https://wsrv.nl/?url=${encodeURIComponent(safeUrl)}&n=-1`);
-      return;
-    }
-    setImgError(true);
-  };
+  // Build the STABLE image URL (don’t use exercise.gifUrl anymore)
+  const resolution = "360"; // 180 | 360 | 720 | 1080 (depends on your plan)
+  const imgSrc = useMemo(() => {
+    if (!id || !rapidKey) return "";
+    return `https://exercisedb.p.rapidapi.com/image?exerciseId=${encodeURIComponent(
+      id
+    )}&resolution=${resolution}&rapidapi-key=${encodeURIComponent(rapidKey)}`;
+  }, [id, rapidKey]);
 
   return (
     <Link
@@ -75,7 +64,7 @@ const ExerciseCard = ({ exercise }) => {
             loading="lazy"
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
-            onError={onImgError}
+            onError={() => setImgError(true)}
             style={{
               width: "100%",
               height: 200,

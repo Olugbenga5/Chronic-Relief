@@ -1,17 +1,90 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {Box, Typography, Button, LinearProgress, Stack, Dialog, DialogTitle, DialogContent, DialogActions} from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  LinearProgress,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
-import {getRoutine, getProgress, saveProgress, saveRoutine, saveHistoryEntry} from "../firebaseHelper";
+import {
+  getRoutine,
+  getProgress,
+  saveProgress,
+  saveRoutine,
+  saveHistoryEntry,
+} from "../firebaseHelper";
 import { fetchData, exerciseOptions } from "../services/fetchData";
 import ExerciseCard from "../components/ExerciseCard";
 import Loader from "../components/Loader";
-import {faTrophy, faDumbbell, faSyncAlt} from "@fortawesome/free-solid-svg-icons";
+import { faTrophy, faDumbbell, faSyncAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+const EXDB = "https://exercisedb.p.rapidapi.com";
+
+// Route params we expect: "back", "knee", "ankle"
+const bodyPartMap = {
+  back: "back",
+  knee: "upper legs",  // NOTE: route uses 'knee' (singular)
+  ankle: "lower legs",
+};
+
+// Fetch helpers ---------------------------------------------------------------
+
+const fetchByBodyPart = async (part) => {
+  const url = `${EXDB}/exercises/bodyPart/${encodeURIComponent(part)}?limit=500`;
+  const data = await fetchData(url, exerciseOptions);
+  return Array.isArray(data) ? data : [];
+};
+
+const fetchExerciseById = async (id) => {
+  // Fetch one exercise by API id; useful if it wasn’t in the bulk payload
+  try {
+    const url = `${EXDB}/exercises/exercise/${encodeURIComponent(id)}`;
+    const data = await fetchData(url, exerciseOptions);
+    // API returns a single object
+    if (data && data.id) return data;
+  } catch (e) {
+    // ignore; we’ll just skip missing ones
+  }
+  return null;
+};
+
+const getChronicPool = async () => {
+  // Try bulk first
+  const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
+  let pool = Array.isArray(bulk) ? bulk : [];
+
+  // If capped/small, merge per-body-part endpoints and dedupe
+  if (pool.length < 50) {
+    const [back, upperLegs, lowerLegs] = await Promise.all([
+      fetchByBodyPart("back"),
+      fetchByBodyPart("upper legs"),
+      fetchByBodyPart("lower legs"),
+    ]);
+    const map = new Map();
+    [...back, ...upperLegs, ...lowerLegs].forEach((ex) => {
+      const key = String(ex?.id ?? ex?._id ?? Math.random());
+      if (!map.has(key)) map.set(key, ex);
+    });
+    pool = Array.from(map.values());
+  }
+
+  // Keep only chronic‑relevant body parts
+  const relevant = ["back", "lower back", "upper legs", "lower legs"];
+  return pool.filter((ex) => relevant.includes(String(ex.bodyPart || "").toLowerCase()));
+};
+
+// Component -------------------------------------------------------------------
+
 const PainAreaRoutine = () => {
-  const { area } = useParams();
+  const { area } = useParams(); // 'back' | 'knee' | 'ankle'
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -20,69 +93,97 @@ const PainAreaRoutine = () => {
   const [loading, setLoading] = useState(true);
   const [openCongrats, setOpenCongrats] = useState(false);
 
-  const bodyPartMap = {
-    back: "back",
-    knee: "upper legs",
-    ankle: "lower legs",
-  };
+  const validBodyPart = bodyPartMap[area]; // e.g., 'upper legs'
+  const areaLabel = area || "back";
 
   const generateAndSaveRoutine = async (uid) => {
-    const allExercises = await fetchData(
-      "https://exercisedb.p.rapidapi.com/exercises?limit=1500",
-      exerciseOptions
+    if (!validBodyPart) {
+      console.warn("Unknown focus area:", area);
+      setRoutine([]);
+      setCompleted([]);
+      return;
+    }
+
+    const pool = await getChronicPool();
+    const filtered = pool.filter(
+      (ex) => String(ex.bodyPart || "").toLowerCase() === validBodyPart
     );
 
-    const validBodyPart = bodyPartMap[area];
-    const filtered = allExercises.filter(
-      (ex) => ex.bodyPart.toLowerCase() === validBodyPart
-    );
-
+    // Random 5 (or fewer if not enough)
     const selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 5);
     const newIds = selected.map((ex) => String(ex.id));
 
-    await saveRoutine(uid, area, newIds);
-    await saveProgress(uid, area, []);
+    await saveRoutine(uid, areaLabel, newIds);
+    await saveProgress(uid, areaLabel, []);
     setRoutine(selected);
     setCompleted([]);
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) return;
+      if (!currentUser) {
+        setUser(null);
+        setRoutine([]);
+        setCompleted([]);
+        setLoading(false);
+        return;
+      }
 
       setUser(currentUser);
+      setLoading(true);
 
       try {
-        const routineIds = await getRoutine(currentUser.uid, area);
+        // 1) Load saved routine ids for this focus area
+        const routineIds = await getRoutine(currentUser.uid, areaLabel); // array of strings
 
-        const allExercises = await fetchData(
-          "https://exercisedb.p.rapidapi.com/exercises?limit=1500",
-          exerciseOptions
-        );
+        // 2) Build a reliable pool (handles capped bulk endpoint)
+        const pool = await getChronicPool();
 
         if (!routineIds || routineIds.length === 0) {
+          // No saved routine -> create a new one
           await generateAndSaveRoutine(currentUser.uid);
           setLoading(false);
           return;
         }
 
-        const selected = allExercises.filter((ex) =>
-          routineIds.includes(String(ex.id))
+        // 3) Try to reconstruct the saved routine from the pool first
+        const poolById = new Map(
+          pool.map((ex) => [String(ex.id ?? ex._id), ex])
         );
 
-        const progress = await getProgress(currentUser.uid, area);
-        setRoutine(selected);
+        const fromPool = routineIds
+          .map((id) => poolById.get(String(id)))
+          .filter(Boolean);
+
+        // 4) If some ids were not in the pool (because the bulk list missed them),
+        // fetch them one-by-one via /exercises/exercise/:id
+        if (fromPool.length < routineIds.length) {
+          const missingIds = routineIds.filter(
+            (id) => !poolById.has(String(id))
+          );
+          const fetchedMissing = (
+            await Promise.all(missingIds.map((id) => fetchExerciseById(id)))
+          ).filter(Boolean);
+
+          fromPool.push(...fetchedMissing);
+        }
+
+        // 5) Load progress and set state
+        const progress = await getProgress(currentUser.uid, areaLabel);
+        setRoutine(fromPool);
         setCompleted((progress || []).map((id) => String(id)));
       } catch (err) {
         console.error("Error loading routine:", err);
-        alert("Something went wrong.");
+        alert("Something went wrong loading your routine.");
+        setRoutine([]);
+        setCompleted([]);
       } finally {
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [area]);
+  }, [areaLabel, validBodyPart]);
 
   const handleToggleComplete = async (id) => {
     if (!user) return;
@@ -92,13 +193,13 @@ const PainAreaRoutine = () => {
       : [...completed, idStr];
 
     setCompleted(updated);
-    await saveProgress(user.uid, area, updated);
+    await saveProgress(user.uid, areaLabel, updated);
   };
 
   const handleResetRoutine = async () => {
     if (!user) return;
     setCompleted([]);
-    await saveProgress(user.uid, area, []);
+    await saveProgress(user.uid, areaLabel, []);
     setOpenCongrats(false);
   };
 
@@ -109,20 +210,18 @@ const PainAreaRoutine = () => {
   };
 
   const progressPercent =
-    routine.length === 0
-      ? 0
-      : Math.floor((completed.length / routine.length) * 100);
+    routine.length === 0 ? 0 : Math.floor((completed.length / routine.length) * 100);
 
   useEffect(() => {
-    const saveIfCompleted = async () => {
+    const maybeSaveHistory = async () => {
       if (progressPercent === 100 && user && routine.length > 0) {
         const routineIds = routine.map((ex) => String(ex.id));
-        await saveHistoryEntry(user.uid, area, routineIds);
+        await saveHistoryEntry(user.uid, areaLabel, routineIds);
         setOpenCongrats(true);
       }
     };
-    saveIfCompleted();
-  }, [progressPercent, user, routine, area]);
+    maybeSaveHistory();
+  }, [progressPercent, user, routine, areaLabel]);
 
   if (loading) return <Loader />;
 
@@ -137,7 +236,7 @@ const PainAreaRoutine = () => {
       </Button>
 
       <Typography variant="h4" fontWeight="bold" mb={2} textAlign="center">
-        Your {area} Routine
+        Your {areaLabel} Routine
       </Typography>
 
       <Box
@@ -190,9 +289,7 @@ const PainAreaRoutine = () => {
               <ExerciseCard exercise={exercise} />
               <Button
                 variant={
-                  completed.includes(String(exercise.id))
-                    ? "contained"
-                    : "outlined"
+                  completed.includes(String(exercise.id)) ? "contained" : "outlined"
                 }
                 size="small"
                 onClick={() => handleToggleComplete(exercise.id)}
@@ -228,12 +325,9 @@ const PainAreaRoutine = () => {
         </DialogTitle>
         <DialogContent sx={{ textAlign: "center" }}>
           <Typography variant="body1" mb={2}>
-            You've completed your {area} routine!
+            You've completed your {areaLabel} routine!
           </Typography>
-          <FontAwesomeIcon
-            icon={faTrophy}
-            style={{ fontSize: "40px", color: "#ff9529" }}
-          />
+          <FontAwesomeIcon icon={faTrophy} style={{ fontSize: "40px", color: "#ff9529" }} />
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
           <Button onClick={handleGenerateNewRoutine} variant="outlined">
