@@ -1,75 +1,133 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Box, Typography, Button, Stack } from '@mui/material';
 import { Link } from 'react-router-dom';
 
+const cap = (s) => (s ? String(s).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()) : '');
+
 const ExerciseCard = ({ exercise }) => {
-  if (!exercise) return null; 
+  if (!exercise) return null;
+
+  const [imgError, setImgError] = useState(false);
+
+  // Ensure HTTPS to avoid mixed‑content blocking on Vercel
+  const safeGifUrl = useMemo(() => {
+    const url = exercise.gifUrl || '';
+    return url.startsWith('http://') ? url.replace(/^http:\/\//, 'https://') : url;
+  }, [exercise.gifUrl]);
+
+  const id = exercise.id ?? exercise._id ?? '';
+  const name = cap(exercise.name || 'Exercise');
+  const bodyPart = cap(exercise.bodyPart || '');
+  const target = cap(exercise.target || '');
 
   return (
-    <Link className="exercise-card" to={`/exercise/${exercise.id}`}>
+    <Link className="exercise-card" to={`/exercise/${id}`} style={{ textDecoration: 'none' }}>
       <Box
         sx={{
-          width: '250px',
-          border: '1px solid #ddd',
-          borderRadius: '10px',
-          padding: '10px',
-          marginBottom: '20px',
+          width: 260,
+          border: '1px solid #e7e7e7',
+          borderRadius: '12px',
+          p: '12px',
+          mb: '20px',
           textAlign: 'center',
-          backgroundColor: '#f8f8f8',
-          transition: 'all 0.3s ease-in-out',
+          bgcolor: '#f8f8f8',
+          transition: 'transform 0.2s ease, border-top-color 0.2s ease',
           position: 'relative',
           borderTop: '4px solid transparent',
           '&:hover': {
-            transform: 'scale(1.03)',
+            transform: 'translateY(-2px)',
             borderTop: '4px solid #ff2625',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.08)',
           },
         }}
       >
-        <img
-          src={exercise.gifUrl}
-          alt={exercise.name}
-          loading="lazy"
-          style={{ width: '100%', height: '200px', objectFit: 'cover' }}
-        />
-
-        <Stack direction="row" spacing={1} justifyContent="center" mt={1} mb={1}>
-          <Button
+        {/* Image / Fallback */}
+        {!imgError && safeGifUrl ? (
+          <img
+            src={safeGifUrl}
+            alt={name}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            style={{
+              width: '100%',
+              height: 200,
+              objectFit: 'cover',
+              borderRadius: 8,
+              background: '#fff',
+            }}
+          />
+        ) : (
+          <Box
             sx={{
-              backgroundColor: '#ffa9a9',
-              color: '#fff',
-              fontSize: '14px',
-              borderRadius: '20px',
-              textTransform: 'capitalize',
-              padding: '5px 15px',
-              minWidth: 'fit-content',
-              '&:hover': {
-                backgroundColor: '#ff7f7f',
-              },
+              width: '100%',
+              height: 200,
+              borderRadius: 8,
+              bgcolor: '#ffffff',
+              border: '1px dashed #ddd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              color: '#777',
             }}
           >
-            {exercise.bodyPart}
-          </Button>
+            Image not available
+          </Box>
+        )}
 
-          <Button
-            sx={{
-              backgroundColor: '#ffa9a9',
-              color: '#fff',
-              fontSize: '14px',
-              borderRadius: '20px',
-              textTransform: 'capitalize',
-              padding: '5px 15px',
-              minWidth: 'fit-content',
-              '&:hover': {
+        {/* Tags */}
+        <Stack direction="row" spacing={1} justifyContent="center" mt={1.25} mb={1}>
+          {bodyPart && (
+            <Button
+              sx={{
+                backgroundColor: '#ffa9a9',
+                color: '#fff',
+                fontSize: 13,
+                borderRadius: '20px',
+                textTransform: 'capitalize',
+                px: 1.75,
+                py: 0.5,
+                minWidth: 'fit-content',
+                '&:hover': { backgroundColor: '#ff7f7f' },
+              }}
+            >
+              {bodyPart}
+            </Button>
+          )}
+          {target && (
+            <Button
+              sx={{
                 backgroundColor: '#fcc757',
-              },
-            }}
-          >
-            {exercise.target}
-          </Button>
+                color: '#fff',
+                fontSize: 13,
+                borderRadius: '20px',
+                textTransform: 'capitalize',
+                px: 1.75,
+                py: 0.5,
+                minWidth: 'fit-content',
+                '&:hover': { backgroundColor: '#f7b632' },
+              }}
+            >
+              {target}
+            </Button>
+          )}
         </Stack>
 
-        <Typography mt="10px" fontWeight="bold" textTransform="capitalize">
-          {exercise.name}
+        {/* Name */}
+        <Typography
+          mt="10px"
+          fontWeight="bold"
+          textTransform="none"
+          sx={{
+            color: '#222',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: 44,
+          }}
+        >
+          {name}
         </Typography>
       </Box>
     </Link>
