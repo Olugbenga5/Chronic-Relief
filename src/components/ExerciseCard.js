@@ -6,30 +6,32 @@ const cap = (s) =>
   s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : "";
 
 const ExerciseCard = ({ exercise }) => {
+  // 🔒 Always call hooks first, unconditionally
   const [imgError, setImgError] = useState(false);
 
-  if (!exercise) return null;
-
-  // Use id from API (fallback to _id if your DB stored it differently)
+  // Safe reads (handle undefined exercise without branching before hooks)
   const id = exercise?.id ?? exercise?._id ?? "";
   const name = cap(exercise?.name || "Exercise");
   const bodyPart = cap(exercise?.bodyPart || "");
   const target = cap(exercise?.target || "");
 
-  // Read RapidAPI key from env (supports Vite and CRA)
+  // Env key (supports Vite and CRA)
   const rapidKey =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_RAPID_API_KEY) ||
     process.env.REACT_APP_RAPID_API_KEY ||
     "";
 
-  // Build the STABLE image URL (don’t use exercise.gifUrl anymore)
-  const resolution = "360"; // 180 | 360 | 720 | 1080 (depends on your plan)
+  // Build STABLE image URL from /image endpoint (don’t use exercise.gifUrl)
+  const resolution = "360"; // 180 | 360 | 720 | 1080 (plan-dependent)
   const imgSrc = useMemo(() => {
     if (!id || !rapidKey) return "";
     return `https://exercisedb.p.rapidapi.com/image?exerciseId=${encodeURIComponent(
       id
     )}&resolution=${resolution}&rapidapi-key=${encodeURIComponent(rapidKey)}`;
   }, [id, rapidKey]);
+
+  // You can return null AFTER hooks (order is still consistent)
+  if (!exercise) return null;
 
   return (
     <Link
