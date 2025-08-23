@@ -5,14 +5,29 @@ import HorizontalScrollbar from './HorizontalScrollbar';
 
 const EXDB = 'https://exercisedb.p.rapidapi.com';
 
-// UI labels (what users click)
+// What users click in the horizontal scrollbar
 const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knee', 'Ankle'];
 
-// Internal matching map — **only singular 'knee'**
+/**
+ * Map “focus areas” -> actual ExerciseDB fields.
+ * We match by bodyPart OR target so we catch more relevant moves.
+ */
 const CHRONIC_MATCHES = {
-  back: ['back', 'lower back'],
-  knee: ['upper legs'],
-  ankle: ['lower legs'],
+  back: {
+    bodyParts: ['back', 'lower back'],
+    targets: ['upper back', 'lats', 'traps', 'trapezius', 'erector spinae', 'spine'],
+  },
+  knee: {
+    bodyParts: ['upper legs', 'lower legs'],
+    targets: [
+      'quads', 'quadriceps', 'hamstrings', 'glutes',
+      'adductors', 'abductors', 'calves', 'tibialis anterior', 'soleus'
+    ],
+  },
+  ankle: {
+    bodyParts: ['lower legs'],
+    targets: ['calves', 'tibialis anterior', 'soleus', 'peroneus longus', 'peroneus brevis'],
+  },
 };
 
 const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
@@ -37,7 +52,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
         const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
         let pool = Array.isArray(bulk) ? bulk : [];
 
-        // If capped, pull the three relevant parts and dedupe
+        // If bulk is capped/small, fetch the sets we care about and dedupe
         if (pool.length < 50) {
           const [back, upperLegs, lowerLegs] = await Promise.all([
             fetchByBodyPart('back'),
@@ -52,6 +67,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
           pool = Array.from(map.values());
         }
 
+        // Keep only chronic-relevant groups
         const relevant = ['back', 'lower back', 'upper legs', 'lower legs'];
         const chronic = pool.filter((ex) =>
           relevant.includes(String(ex.bodyPart || '').toLowerCase())
@@ -59,7 +75,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
         if (!alive) return;
         setAllChronic(chronic);
-        setExercises(chronic);
+        setExercises(chronic); // “All”
       } catch (e) {
         if (!alive) return;
         console.error('Failed to load exercises:', e);
@@ -71,9 +87,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     };
 
     load();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [setExercises]);
 
   const handleSearch = () => {
@@ -93,18 +107,20 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     window.scrollTo({ top: 1800, behavior: 'smooth' });
   };
 
-  // Tab changes: All / Back / Knee / Ankle
+  // Handle tab changes: All / Back / Knee / Ankle
   useEffect(() => {
     const bp = String(bodyPart || 'all').toLowerCase();
 
     if (bp === 'all') {
       setExercises(allChronic);
     } else {
-      const matches = CHRONIC_MATCHES[bp];
-      const filtered = matches
-        ? allChronic.filter((ex) =>
-            matches.includes(String(ex.bodyPart || '').toLowerCase())
-          )
+      const cfg = CHRONIC_MATCHES[bp];
+      const filtered = cfg
+        ? allChronic.filter((ex) => {
+            const part = String(ex.bodyPart || '').toLowerCase();
+            const targ = String(ex.target || '').toLowerCase();
+            return cfg.bodyParts.includes(part) || cfg.targets.includes(targ);
+          })
         : [];
       setExercises(filtered);
     }

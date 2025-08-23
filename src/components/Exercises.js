@@ -2,11 +2,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Box, Pagination, Stack, Typography } from "@mui/material";
 import ExerciseCard from "./ExerciseCard";
 
-// Mapping now uses **knee** (singular)
 const MAP = {
-  back: ["back", "lower back"],
-  knee: ["upper legs"],
-  ankle: ["lower legs"],
+  back: {
+    bodyParts: ["back", "lower back"],
+    targets: ["upper back", "lats", "traps", "trapezius", "erector spinae", "spine"],
+  },
+  knee: {
+    bodyParts: ["upper legs", "lower legs"],
+    targets: [
+      "quads", "quadriceps", "hamstrings", "glutes",
+      "adductors", "abductors", "calves", "tibialis anterior", "soleus"
+    ],
+  },
+  ankle: {
+    bodyParts: ["lower legs"],
+    targets: ["calves", "tibialis anterior", "soleus", "peroneus longus", "peroneus brevis"],
+  },
 };
 
 const Exercises = ({ exercises = [], bodyPart = "All" }) => {
@@ -18,18 +29,22 @@ const Exercises = ({ exercises = [], bodyPart = "All" }) => {
     const bp = String(bodyPart || "all").toLowerCase();
     if (bp === "all") return exercises;
 
-    const matches = MAP[bp];
-    if (!matches) return exercises;
+    const cfg = MAP[bp];
+    if (!cfg) return exercises;
 
-    return exercises.filter((ex) =>
-      matches.includes(String(ex.bodyPart || "").toLowerCase())
-    );
+    return exercises.filter((ex) => {
+      const part = String(ex.bodyPart || "").toLowerCase();
+      const targ = String(ex.target || "").toLowerCase();
+      return cfg.bodyParts.includes(part) || cfg.targets.includes(targ);
+    });
   }, [exercises, bodyPart]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+
   useEffect(() => {
     setCurrentPage(1);
   }, [exercises, bodyPart]);
+
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
