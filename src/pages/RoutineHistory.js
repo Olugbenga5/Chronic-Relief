@@ -23,6 +23,11 @@ function pad4(s) {
   const t = stripZeros(s);
   return t.padStart(4, "0");
 }
+function normalizeIdForApi(id) {
+  const raw = String(id || "");
+  // If it starts with a letter, keep as-is; otherwise pad to 4 digits
+  return /^[A-Za-z]/.test(raw) ? raw : pad4(raw);
+}
 function addNameKeys(map, id, name) {
   const raw = String(id || "");
   const no0 = stripZeros(raw);
@@ -53,13 +58,13 @@ const RoutineHistory = () => {
           fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions),
         ]);
 
-        // 2) Build robust lookup (handles "29" vs "0029")
+        // 2) Build lookup that matches raw, de-zeroed, and padded IDs
         const nameById = new Map();
         (allExercises || []).forEach((ex) =>
           addNameKeys(nameById, ex?.id, ex?.name)
         );
 
-        // 3) First pass: map names; collect any truly missing ids
+        // 3) First pass: map names, collect missing IDs
         const missingIds = new Set();
         const prelim = (rawHistory || []).map((entry) => {
           const names = (entry.exerciseIds || []).map((id) => {
@@ -74,15 +79,14 @@ const RoutineHistory = () => {
           return { ...entry, exerciseNames: names };
         });
 
-        // 4) If any are missing, fetch each by id (small number) and update map
+        // 4) Fetch truly missing IDs (now using padded 4-digit IDs)
         if (missingIds.size > 0) {
           const fetched = await Promise.all(
             Array.from(missingIds).map(async (idStr) => {
               try {
+                const apiId = normalizeIdForApi(idStr); // <-- KEY FIX
                 const ex = await fetchData(
-                  `${EXDB}/exercises/exercise/${encodeURIComponent(
-                    stripZeros(idStr)
-                  )}`,
+                  `${EXDB}/exercises/exercise/${encodeURIComponent(apiId)}`,
                   exerciseOptions
                 );
                 if (ex && ex.id && ex.name) {
@@ -94,7 +98,7 @@ const RoutineHistory = () => {
             })
           );
 
-          // 5) Second pass: replace unknowns with fetched names where available
+          // 5) Second pass: replace “Unknown ID” where we now have names
           const fetchedMap = new Map(
             fetched.filter((f) => f.name).map((f) => [f.idStr, f.name])
           );
