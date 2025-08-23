@@ -1,3 +1,4 @@
+// components/Exercises.js
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Pagination, Stack, Typography } from '@mui/material';
 import ExerciseCard from './ExerciseCard';
@@ -6,29 +7,28 @@ const Exercises = ({ exercises, setExercises, bodyPart }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const exercisePerPage = 8;
 
-  // Filter first
+  // 1) Filter first
   const filteredExercises = useMemo(() => {
     if (!Array.isArray(exercises)) return [];
     const bp = (bodyPart || 'all').toLowerCase();
-
     if (bp === 'all') return exercises;
 
     return exercises.filter((ex) =>
-      (bodyPart === 'Back' && (ex.bodyPart === 'back' || ex.bodyPart === 'lower back')) ||
-      (bodyPart === 'Knees' && ex.bodyPart === 'upper legs') ||
-      (bodyPart === 'Ankle' && ex.bodyPart === 'lower legs')
+      (bodyPart === 'Back'  && (ex.bodyPart?.toLowerCase() === 'back' || ex.bodyPart?.toLowerCase() === 'lower back')) ||
+      (bodyPart === 'Knees' &&  ex.bodyPart?.toLowerCase() === 'upper legs') ||
+      (bodyPart === 'Ankle' &&  ex.bodyPart?.toLowerCase() === 'lower legs')
     );
   }, [exercises, bodyPart]);
 
-  // Compute current page after filtering
-  const indexOfLastExercise = currentPage * exercisePerPage;
-  const indexOfFirstExercise = indexOfLastExercise - exercisePerPage;
-  const currentExercises = filteredExercises.slice(indexOfFirstExercise, indexOfLastExercise);
-
-  // Reset pagination when filters or dataset change
+  // 2) Reset page whenever dataset or filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [bodyPart, exercises]);
+
+  // 3) Slice AFTER filtering
+  const indexOfLast = currentPage * exercisePerPage;
+  const indexOfFirst = indexOfLast - exercisePerPage;
+  const pageItems = filteredExercises.slice(indexOfFirst, indexOfLast);
 
   const paginate = (_e, value) => {
     setCurrentPage(value);
@@ -41,17 +41,12 @@ const Exercises = ({ exercises, setExercises, bodyPart }) => {
         Showing Results
       </Typography>
 
-      <Stack
-        direction="row"
-        sx={{ gap: { lg: '110px', xs: '50px' } }}
-        flexWrap="wrap"
-        justifyContent="center"
-      >
-        {filteredExercises.length === 0 ? (
+      <Stack direction="row" sx={{ gap: { lg: '110px', xs: '50px' } }} flexWrap="wrap" justifyContent="center">
+        {pageItems.length === 0 ? (
           <Typography>No exercises found.</Typography>
         ) : (
-          currentExercises.map((exercise, index) => (
-            <ExerciseCard key={exercise.id || index} exercise={exercise} />
+          pageItems.map((exercise, idx) => (
+            <ExerciseCard key={exercise.id || idx} exercise={exercise} />
           ))
         )}
       </Stack>
