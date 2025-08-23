@@ -5,13 +5,13 @@ import HorizontalScrollbar from './HorizontalScrollbar';
 
 const EXDB = 'https://exercisedb.p.rapidapi.com';
 
-// UI labels
-const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
+// UI labels (what users click)
+const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knee', 'Ankle'];
 
-// Internal matching map — use lowercase keys for consistency
+// Internal matching map — **only singular 'knee'**
 const CHRONIC_MATCHES = {
   back: ['back', 'lower back'],
-  knees: ['upper legs'],
+  knee: ['upper legs'],
   ankle: ['lower legs'],
 };
 
@@ -21,7 +21,6 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
   const [loading, setLoading] = useState(false);
   const [noResults, setNoResults] = useState(false);
 
-  // Helper: fetch one bodyPart list; some plans honor `limit`, keep it generous
   const fetchByBodyPart = async (part) => {
     const url = `${EXDB}/exercises/bodyPart/${encodeURIComponent(part)}?limit=500`;
     const data = await fetchData(url, exerciseOptions);
@@ -34,19 +33,17 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     const load = async () => {
       setLoading(true);
       try {
-        // 1) Try the bulk endpoint
+        // Try bulk first
         const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
         let pool = Array.isArray(bulk) ? bulk : [];
 
-        // 2) If the bulk payload seems capped (common on some plans/regions), fall back.
+        // If capped, pull the three relevant parts and dedupe
         if (pool.length < 50) {
           const [back, upperLegs, lowerLegs] = await Promise.all([
             fetchByBodyPart('back'),
             fetchByBodyPart('upper legs'),
             fetchByBodyPart('lower legs'),
           ]);
-
-          // Deduplicate by id
           const map = new Map();
           [...back, ...upperLegs, ...lowerLegs].forEach((ex) => {
             const id = String(ex?.id ?? ex?._id ?? Math.random());
@@ -55,7 +52,6 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
           pool = Array.from(map.values());
         }
 
-        // 3) Keep only chronic‑relevant areas
         const relevant = ['back', 'lower back', 'upper legs', 'lower legs'];
         const chronic = pool.filter((ex) =>
           relevant.includes(String(ex.bodyPart || '').toLowerCase())
@@ -63,15 +59,10 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
         if (!alive) return;
         setAllChronic(chronic);
-        setExercises(chronic); // <-- “All” is the full chronic set
-
-        console.log('[SearchExercises] Loaded:', {
-          total: pool.length,
-          chronic: chronic.length,
-        });
+        setExercises(chronic);
       } catch (e) {
-        console.error('Failed to load exercises:', e);
         if (!alive) return;
+        console.error('Failed to load exercises:', e);
         setAllChronic([]);
         setExercises([]);
       } finally {
@@ -85,7 +76,6 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     };
   }, [setExercises]);
 
-  // Search in the currently available chronic set
   const handleSearch = () => {
     const q = search.trim().toLowerCase();
     if (!q) return;
@@ -103,7 +93,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     window.scrollTo({ top: 1800, behavior: 'smooth' });
   };
 
-  // Body‑part tabs: All / Back / Knees / Ankle
+  // Tab changes: All / Back / Knee / Ankle
   useEffect(() => {
     const bp = String(bodyPart || 'all').toLowerCase();
 
@@ -118,7 +108,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
         : [];
       setExercises(filtered);
     }
-    setNoResults(false); // clear no-results on tab change
+    setNoResults(false);
   }, [bodyPart, allChronic, setExercises]);
 
   return (
@@ -143,7 +133,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder={loading ? 'Loading exercises…' : 'Search exercises by name, target, or equipment'}
+          placeholder={loading ? 'Loading exercises…' : 'Search by name, target, or equipment'}
           type="text"
           disabled={loading}
         />

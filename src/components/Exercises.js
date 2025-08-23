@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Box, Pagination, Stack, Typography } from "@mui/material";
 import ExerciseCard from "./ExerciseCard";
 
-// Consistent, lowercase mapping (matches SearchExercises)
+// Mapping now uses **knee** (singular)
 const MAP = {
   back: ["back", "lower back"],
-  knees: ["upper legs"],
+  knee: ["upper legs"],
   ankle: ["lower legs"],
 };
 
@@ -13,7 +13,6 @@ const Exercises = ({ exercises = [], bodyPart = "All" }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 8;
 
-  // 1) Filter first (so "All" truly shows everything you've allowed)
   const filtered = useMemo(() => {
     if (!Array.isArray(exercises)) return [];
     const bp = String(bodyPart || "all").toLowerCase();
@@ -27,18 +26,14 @@ const Exercises = ({ exercises = [], bodyPart = "All" }) => {
     );
   }, [exercises, bodyPart]);
 
-  // 2) Keep pagination in sync when data/filter changes
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   useEffect(() => {
-    // reset to page 1 when dataset/filter changes
     setCurrentPage(1);
   }, [exercises, bodyPart]);
   useEffect(() => {
-    // clamp if current page exceeds available pages
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  // 3) Slice the filtered list for the current page
   const start = (currentPage - 1) * perPage;
   const pageItems = filtered.slice(start, start + perPage);
 
