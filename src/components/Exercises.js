@@ -2,36 +2,48 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Box, Pagination, Stack, Typography } from "@mui/material";
 import ExerciseCard from "./ExerciseCard";
 
-const Exercises = ({ exercises, bodyPart }) => {
+// Consistent, lowercase mapping (matches SearchExercises)
+const MAP = {
+  back: ["back", "lower back"],
+  knees: ["upper legs"],
+  ankle: ["lower legs"],
+};
+
+const Exercises = ({ exercises = [], bodyPart = "All" }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 8;
 
-  // Filter first (case-insensitive, supports “lower back”)
+  // 1) Filter first (so "All" truly shows everything you've allowed)
   const filtered = useMemo(() => {
     if (!Array.isArray(exercises)) return [];
-    const bp = (bodyPart || "all").toLowerCase();
+    const bp = String(bodyPart || "all").toLowerCase();
     if (bp === "all") return exercises;
 
-    const match = (ex) => {
-      const part = (ex.bodyPart || "").toLowerCase();
-      if (bp === "back") return part === "back" || part === "lower back";
-      if (bp === "knees") return part === "upper legs";
-      if (bp === "ankle") return part === "lower legs";
-      return true;
-    };
+    const matches = MAP[bp];
+    if (!matches) return exercises;
 
-    return exercises.filter(match);
+    return exercises.filter((ex) =>
+      matches.includes(String(ex.bodyPart || "").toLowerCase())
+    );
   }, [exercises, bodyPart]);
 
-  // Reset page when dataset or filter changes
-  useEffect(() => setCurrentPage(1), [bodyPart, exercises]);
+  // 2) Keep pagination in sync when data/filter changes
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  useEffect(() => {
+    // reset to page 1 when dataset/filter changes
+    setCurrentPage(1);
+  }, [exercises, bodyPart]);
+  useEffect(() => {
+    // clamp if current page exceeds available pages
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
-  const last = currentPage * perPage;
-  const first = last - perPage;
-  const pageItems = filtered.slice(first, last);
+  // 3) Slice the filtered list for the current page
+  const start = (currentPage - 1) * perPage;
+  const pageItems = filtered.slice(start, start + perPage);
 
-  const paginate = (_e, value) => {
-    setCurrentPage(value);
+  const onPageChange = (_e, page) => {
+    setCurrentPage(page);
     window.scrollTo({ top: 1800, behavior: "smooth" });
   };
 
@@ -41,14 +53,18 @@ const Exercises = ({ exercises, bodyPart }) => {
         Showing Results
       </Typography>
 
-      {/* Debug line: shows how many we actually have in the browser console */}
-      {console.log(`[Exercises] filtered=${filtered.length}, page=${currentPage}/${Math.ceil(filtered.length / perPage) || 1}`)}
-
-      <Stack direction="row" sx={{ gap: { lg: "110px", xs: "50px" } }} flexWrap="wrap" justifyContent="center">
-        {filtered.length === 0 ? (
+      <Stack
+        direction="row"
+        sx={{ gap: { lg: "110px", xs: "50px" } }}
+        flexWrap="wrap"
+        justifyContent="center"
+      >
+        {pageItems.length === 0 ? (
           <Typography>No exercises found.</Typography>
         ) : (
-          pageItems.map((ex, i) => <ExerciseCard key={ex.id || i} exercise={ex} />)
+          pageItems.map((ex, i) => (
+            <ExerciseCard key={ex.id || ex._id || i} exercise={ex} />
+          ))
         )}
       </Stack>
 
@@ -58,8 +74,8 @@ const Exercises = ({ exercises, bodyPart }) => {
             color="standard"
             shape="rounded"
             page={currentPage}
-            count={Math.ceil(filtered.length / perPage)}
-            onChange={paginate}
+            count={totalPages}
+            onChange={onPageChange}
             size="large"
           />
         )}

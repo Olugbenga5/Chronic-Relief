@@ -3,25 +3,29 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { exerciseOptions, fetchData } from '../services/fetchData';
 import HorizontalScrollbar from './HorizontalScrollbar';
 
-const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
-const CHRONIC_MATCHES = {
-  Back: ['back', 'lower back'],
-  Knees: ['upper legs'],
-  Ankle: ['lower legs'],
-};
-
 const EXDB = 'https://exercisedb.p.rapidapi.com';
+
+// UI labels
+const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knees', 'Ankle'];
+
+// Internal matching map — use lowercase keys for consistency
+const CHRONIC_MATCHES = {
+  back: ['back', 'lower back'],
+  knees: ['upper legs'],
+  ankle: ['lower legs'],
+};
 
 const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
   const [search, setSearch] = useState('');
-  const [bodyParts] = useState(CHRONIC_BODY_PART_LABELS);
   const [allChronic, setAllChronic] = useState([]);
   const [loading, setLoading] = useState(false);
   const [noResults, setNoResults] = useState(false);
 
-  // Helper to fetch one bodyPart list (with a generous limit param for plans that honor it)
+  // Helper: fetch one bodyPart list; some plans honor `limit`, keep it generous
   const fetchByBodyPart = async (part) => {
-    return await fetchData(`${EXDB}/exercises/bodyPart/${encodeURIComponent(part)}?limit=500`, exerciseOptions) || [];
+    const url = `${EXDB}/exercises/bodyPart/${encodeURIComponent(part)}?limit=500`;
+    const data = await fetchData(url, exerciseOptions);
+    return Array.isArray(data) ? data : [];
   };
 
   useEffect(() => {
@@ -30,13 +34,12 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     const load = async () => {
       setLoading(true);
       try {
-        // Try the big dump first
-        const bulk = await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions) || [];
-        let pool = bulk;
+        // 1) Try the bulk endpoint
+        const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
+        let pool = Array.isArray(bulk) ? bulk : [];
 
-        // If we look capped (RapidAPI plan/region sometimes returns ~10/20),
-        // fall back to merging body-part endpoints we care about.
-        if (!Array.isArray(bulk) || bulk.length < 50) {
+        // 2) If the bulk payload seems capped (common on some plans/regions), fall back.
+        if (pool.length < 50) {
           const [back, upperLegs, lowerLegs] = await Promise.all([
             fetchByBodyPart('back'),
             fetchByBodyPart('upper legs'),
@@ -46,24 +49,24 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
           // Deduplicate by id
           const map = new Map();
           [...back, ...upperLegs, ...lowerLegs].forEach((ex) => {
-            const id = String(ex.id ?? ex._id ?? Math.random());
+            const id = String(ex?.id ?? ex?._id ?? Math.random());
             if (!map.has(id)) map.set(id, ex);
           });
           pool = Array.from(map.values());
         }
 
-        // Keep only chronic‑relevant areas
-        const relevantParts = ['back', 'lower back', 'upper legs', 'lower legs'];
-        const chronic = (pool || []).filter(
-          (ex) => relevantParts.includes(String(ex.bodyPart || '').toLowerCase())
+        // 3) Keep only chronic‑relevant areas
+        const relevant = ['back', 'lower back', 'upper legs', 'lower legs'];
+        const chronic = pool.filter((ex) =>
+          relevant.includes(String(ex.bodyPart || '').toLowerCase())
         );
 
         if (!alive) return;
         setAllChronic(chronic);
-        setExercises(chronic);
+        setExercises(chronic); // <-- “All” is the full chronic set
 
         console.log('[SearchExercises] Loaded:', {
-          total: pool?.length ?? 0,
+          total: pool.length,
           chronic: chronic.length,
         });
       } catch (e) {
@@ -72,15 +75,17 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
         setAllChronic([]);
         setExercises([]);
       } finally {
-        if (alive) setLoading(false);
+        alive && setLoading(false);
       }
     };
 
     load();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [setExercises]);
 
-  // Search
+  // Search in the currently available chronic set
   const handleSearch = () => {
     const q = search.trim().toLowerCase();
     if (!q) return;
@@ -98,25 +103,32 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     window.scrollTo({ top: 1800, behavior: 'smooth' });
   };
 
-  // Tab switching (All / Back / Knees / Ankle)
+  // Body‑part tabs: All / Back / Knees / Ankle
   useEffect(() => {
-    const bp = (bodyPart || 'all').toLowerCase();
+    const bp = String(bodyPart || 'all').toLowerCase();
+
     if (bp === 'all') {
       setExercises(allChronic);
     } else {
-      const key = Object.keys(CHRONIC_MATCHES).find((k) => k.toLowerCase() === bp);
-      const matches = key ? CHRONIC_MATCHES[key] : [];
-      const filtered = allChronic.filter((ex) =>
-        matches.includes(String(ex.bodyPart || '').toLowerCase())
-      );
+      const matches = CHRONIC_MATCHES[bp];
+      const filtered = matches
+        ? allChronic.filter((ex) =>
+            matches.includes(String(ex.bodyPart || '').toLowerCase())
+          )
+        : [];
       setExercises(filtered);
     }
-    setNoResults(false);
+    setNoResults(false); // clear no-results on tab change
   }, [bodyPart, allChronic, setExercises]);
 
   return (
     <Stack alignItems="center" mt="37px" justifyContent="center" p="20px">
-      <Typography fontWeight={700} sx={{ fontSize: { lg: '44px', xs: '30px' } }} mb="50px" textAlign="center">
+      <Typography
+        fontWeight={700}
+        sx={{ fontSize: { lg: '44px', xs: '30px' } }}
+        mb="50px"
+        textAlign="center"
+      >
         Here Are Some Exercises <br />For Chronic Pain Relief
       </Typography>
 
@@ -159,7 +171,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
       <Box sx={{ position: 'relative', width: '100%', p: '20px' }}>
         <HorizontalScrollbar
-          data={bodyParts}
+          data={CHRONIC_BODY_PART_LABELS}
           bodyPart={bodyPart}
           setBodyPart={setBodyPart}
           isBodyParts

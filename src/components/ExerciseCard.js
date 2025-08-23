@@ -1,81 +1,102 @@
-import React, { useMemo, useState, memo } from 'react';
-import { Box, Typography, Button, Stack } from '@mui/material';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Typography, Button, Stack } from "@mui/material";
+import { Link } from "react-router-dom";
 
 const cap = (s) =>
-  s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : '';
+  s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : "";
 
 const ExerciseCard = ({ exercise }) => {
-  // ✅ Hooks must be called unconditionally
+  const [imgSrc, setImgSrc] = useState("");
+  const [triedProxy, setTriedProxy] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Safely read props (exercise may be null/undefined)
-  const rawUrl = exercise?.gifUrl ?? '';
-  const safeGifUrl = useMemo(() => {
-    return rawUrl.startsWith('http://') ? rawUrl.replace(/^http:\/\//, 'https://') : rawUrl;
-  }, [rawUrl]);
+  // sanitize incoming URL
+  const rawUrl = exercise?.gifUrl ?? "";
+  const safeUrl = useMemo(
+    () =>
+      rawUrl.startsWith("http://")
+        ? rawUrl.replace(/^http:\/\//, "https://")
+        : rawUrl,
+    [rawUrl]
+  );
 
-  const id = exercise?.id ?? exercise?._id ?? '';
-  const name = cap(exercise?.name || 'Exercise');
-  const bodyPart = cap(exercise?.bodyPart || '');
-  const target = cap(exercise?.target || '');
+  const id = exercise?.id ?? exercise?._id ?? "";
+  const name = cap(exercise?.name || "Exercise");
+  const bodyPart = cap(exercise?.bodyPart || "");
+  const target = cap(exercise?.target || "");
 
-  // You can still early-return AFTER hooks run
+  useEffect(() => {
+    setImgSrc(safeUrl || "");
+    setImgError(false);
+    setTriedProxy(false);
+  }, [safeUrl]);
+
   if (!exercise) return null;
+
+  const onImgError = () => {
+    if (!triedProxy && safeUrl) {
+      setTriedProxy(true);
+      setImgSrc(`https://wsrv.nl/?url=${encodeURIComponent(safeUrl)}&n=-1`);
+      return;
+    }
+    setImgError(true);
+  };
 
   return (
     <Link
       className="exercise-card"
       to={`/exercise/${id}`}
-      style={{ textDecoration: 'none' }}
+      style={{ textDecoration: "none" }}
       aria-label={`Open details for ${name}`}
     >
       <Box
         sx={{
           width: 260,
-          border: '1px solid #e7e7e7',
-          borderRadius: '12px',
-          p: '12px',
-          mb: '20px',
-          textAlign: 'center',
-          bgcolor: '#f8f8f8',
-          transition: 'transform 0.2s ease, border-top-color 0.2s ease',
-          position: 'relative',
-          borderTop: '4px solid transparent',
-          '&:hover': {
-            transform: 'translateY(-2px)',
-            borderTop: '4px solid #ff2625',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.08)',
+          border: "1px solid #e7e7e7",
+          borderRadius: "12px",
+          p: "12px",
+          mb: "20px",
+          textAlign: "center",
+          bgcolor: "#f8f8f8",
+          transition: "transform .2s, border-top-color .2s",
+          position: "relative",
+          borderTop: "4px solid transparent",
+          "&:hover": {
+            transform: "translateY(-2px)",
+            borderTop: "4px solid #ff2625",
+            boxShadow: "0 6px 20px rgba(0,0,0,.08)",
           },
         }}
       >
-        {!imgError && safeGifUrl ? (
+        {!imgError && imgSrc ? (
           <img
-            src={safeGifUrl}
+            src={imgSrc}
             alt={name}
             loading="lazy"
-            onError={() => setImgError(true)}
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            onError={onImgError}
             style={{
-              width: '100%',
+              width: "100%",
               height: 200,
-              objectFit: 'cover',
+              objectFit: "cover",
               borderRadius: 8,
-              background: '#fff',
+              background: "#fff",
             }}
           />
         ) : (
           <Box
             sx={{
-              width: '100%',
+              width: "100%",
               height: 200,
               borderRadius: 8,
-              bgcolor: '#ffffff',
-              border: '1px dashed #ddd',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              bgcolor: "#ffffff",
+              border: "1px dashed #ddd",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               fontSize: 14,
-              color: '#777',
+              color: "#777",
             }}
           >
             Image not available
@@ -87,15 +108,15 @@ const ExerciseCard = ({ exercise }) => {
             <Button
               aria-label={`Body part ${bodyPart}`}
               sx={{
-                backgroundColor: '#ffa9a9',
-                color: '#fff',
+                backgroundColor: "#ffa9a9",
+                color: "#fff",
                 fontSize: 13,
-                borderRadius: '20px',
-                textTransform: 'capitalize',
+                borderRadius: "20px",
+                textTransform: "capitalize",
                 px: 1.75,
                 py: 0.5,
-                minWidth: 'fit-content',
-                '&:hover': { backgroundColor: '#ff7f7f' },
+                minWidth: "fit-content",
+                "&:hover": { backgroundColor: "#ff7f7f" },
               }}
             >
               {bodyPart}
@@ -105,15 +126,15 @@ const ExerciseCard = ({ exercise }) => {
             <Button
               aria-label={`Target ${target}`}
               sx={{
-                backgroundColor: '#fcc757',
-                color: '#fff',
+                backgroundColor: "#fcc757",
+                color: "#fff",
                 fontSize: 13,
-                borderRadius: '20px',
-                textTransform: 'capitalize',
+                borderRadius: "20px",
+                textTransform: "capitalize",
                 px: 1.75,
                 py: 0.5,
-                minWidth: 'fit-content',
-                '&:hover': { backgroundColor: '#f7b632' },
+                minWidth: "fit-content",
+                "&:hover": { backgroundColor: "#f7b632" },
               }}
             >
               {target}
@@ -125,11 +146,11 @@ const ExerciseCard = ({ exercise }) => {
           mt="10px"
           fontWeight="bold"
           sx={{
-            color: '#222',
-            display: '-webkit-box',
+            color: "#222",
+            display: "-webkit-box",
             WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
             minHeight: 44,
           }}
         >
@@ -140,4 +161,4 @@ const ExerciseCard = ({ exercise }) => {
   );
 };
 
-export default memo(ExerciseCard);
+export default ExerciseCard;
