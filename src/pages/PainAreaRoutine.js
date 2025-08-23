@@ -31,11 +31,9 @@ const EXDB = "https://exercisedb.p.rapidapi.com";
 // Route params we expect: "back", "knee", "ankle"
 const bodyPartMap = {
   back: "back",
-  knee: "upper legs",  // NOTE: route uses 'knee' (singular)
+  knee: "upper legs",
   ankle: "lower legs",
 };
-
-// Fetch helpers ---------------------------------------------------------------
 
 const fetchByBodyPart = async (part) => {
   const url = `${EXDB}/exercises/bodyPart/${encodeURIComponent(part)}?limit=500`;
@@ -44,24 +42,18 @@ const fetchByBodyPart = async (part) => {
 };
 
 const fetchExerciseById = async (id) => {
-  // Fetch one exercise by API id; useful if it wasn’t in the bulk payload
   try {
     const url = `${EXDB}/exercises/exercise/${encodeURIComponent(id)}`;
     const data = await fetchData(url, exerciseOptions);
-    // API returns a single object
     if (data && data.id) return data;
-  } catch (e) {
-    // ignore; we’ll just skip missing ones
-  }
+  } catch {}
   return null;
 };
 
 const getChronicPool = async () => {
-  // Try bulk first
   const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
   let pool = Array.isArray(bulk) ? bulk : [];
 
-  // If capped/small, merge per-body-part endpoints and dedupe
   if (pool.length < 50) {
     const [back, upperLegs, lowerLegs] = await Promise.all([
       fetchByBodyPart("back"),
@@ -76,12 +68,9 @@ const getChronicPool = async () => {
     pool = Array.from(map.values());
   }
 
-  // Keep only chronic‑relevant body parts
   const relevant = ["back", "lower back", "upper legs", "lower legs"];
   return pool.filter((ex) => relevant.includes(String(ex.bodyPart || "").toLowerCase()));
 };
-
-// Component -------------------------------------------------------------------
 
 const PainAreaRoutine = () => {
   const { area } = useParams(); // 'back' | 'knee' | 'ankle'
@@ -93,7 +82,7 @@ const PainAreaRoutine = () => {
   const [loading, setLoading] = useState(true);
   const [openCongrats, setOpenCongrats] = useState(false);
 
-  const validBodyPart = bodyPartMap[area]; // e.g., 'upper legs'
+  const validBodyPart = bodyPartMap[area];
   const areaLabel = area || "back";
 
   const generateAndSaveRoutine = async (uid) => {
@@ -109,7 +98,6 @@ const PainAreaRoutine = () => {
       (ex) => String(ex.bodyPart || "").toLowerCase() === validBodyPart
     );
 
-    // Random 5 (or fewer if not enough)
     const selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 5);
     const newIds = selected.map((ex) => String(ex.id));
 
@@ -128,25 +116,19 @@ const PainAreaRoutine = () => {
         setLoading(false);
         return;
       }
-
       setUser(currentUser);
       setLoading(true);
 
       try {
-        // 1) Load saved routine ids for this focus area
-        const routineIds = await getRoutine(currentUser.uid, areaLabel); // array of strings
-
-        // 2) Build a reliable pool (handles capped bulk endpoint)
+        const routineIds = await getRoutine(currentUser.uid, areaLabel);
         const pool = await getChronicPool();
 
         if (!routineIds || routineIds.length === 0) {
-          // No saved routine -> create a new one
           await generateAndSaveRoutine(currentUser.uid);
           setLoading(false);
           return;
         }
 
-        // 3) Try to reconstruct the saved routine from the pool first
         const poolById = new Map(
           pool.map((ex) => [String(ex.id ?? ex._id), ex])
         );
@@ -155,20 +137,14 @@ const PainAreaRoutine = () => {
           .map((id) => poolById.get(String(id)))
           .filter(Boolean);
 
-        // 4) If some ids were not in the pool (because the bulk list missed them),
-        // fetch them one-by-one via /exercises/exercise/:id
         if (fromPool.length < routineIds.length) {
-          const missingIds = routineIds.filter(
-            (id) => !poolById.has(String(id))
-          );
+          const missingIds = routineIds.filter((id) => !poolById.has(String(id)));
           const fetchedMissing = (
             await Promise.all(missingIds.map((id) => fetchExerciseById(id)))
           ).filter(Boolean);
-
           fromPool.push(...fetchedMissing);
         }
 
-        // 5) Load progress and set state
         const progress = await getProgress(currentUser.uid, areaLabel);
         setRoutine(fromPool);
         setCompleted((progress || []).map((id) => String(id)));
@@ -191,7 +167,6 @@ const PainAreaRoutine = () => {
     const updated = completed.includes(idStr)
       ? completed.filter((x) => x !== idStr)
       : [...completed, idStr];
-
     setCompleted(updated);
     await saveProgress(user.uid, areaLabel, updated);
   };
@@ -288,21 +263,12 @@ const PainAreaRoutine = () => {
             <Box key={exercise.id} sx={{ position: "relative" }}>
               <ExerciseCard exercise={exercise} />
               <Button
-                variant={
-                  completed.includes(String(exercise.id)) ? "contained" : "outlined"
-                }
+                variant={completed.includes(String(exercise.id)) ? "contained" : "outlined"}
                 size="small"
                 onClick={() => handleToggleComplete(exercise.id)}
-                sx={{
-                  mt: 1,
-                  display: "block",
-                  mx: "auto",
-                  textTransform: "none",
-                }}
+                sx={{ mt: 1, display: "block", mx: "auto", textTransform: "none" }}
               >
-                {completed.includes(String(exercise.id))
-                  ? "✓ Completed"
-                  : "Mark as Complete"}
+                {completed.includes(String(exercise.id)) ? "✓ Completed" : "Mark as Complete"}
               </Button>
             </Box>
           ))

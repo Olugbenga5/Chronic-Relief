@@ -6,7 +6,9 @@ import HeroBanner from "../components/HeroBanner";
 import { auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { savePainArea, saveRoutine } from "../firebaseHelper";
+import { savePainArea, saveRoutine, getPainArea } from "../firebaseHelper";
+
+const LAST_AREA_KEY = "cr:lastPainArea";
 
 const Landing = () => {
   const [exercises, setExercises] = useState([]);
@@ -14,22 +16,55 @@ const Landing = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
+  // On auth change, capture user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) setUser(currentUser);
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser || null);
     });
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
+
+  // Hydrate initial selection from Firebase (if logged in) or localStorage
+  useEffect(() => {
+    let alive = true;
+
+    const hydrate = async () => {
+      // 1) Try Firebase if signed in and you have getPainArea
+      if (user && typeof getPainArea === "function") {
+        try {
+          const saved = await getPainArea(user.uid);
+          if (alive && saved) {
+            setBodyPart(saved);
+            localStorage.setItem(LAST_AREA_KEY, saved);
+            return;
+          }
+        } catch {
+          // ignore and fall back to localStorage
+        }
+      }
+      // 2) Fallback to localStorage
+      const last = localStorage.getItem(LAST_AREA_KEY);
+      if (alive && last) {
+        setBodyPart(last);
+      }
+    };
+
+    hydrate();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   const handleSelectArea = async (area) => {
     setBodyPart(area);
+    localStorage.setItem(LAST_AREA_KEY, area);
 
+    // Map UI label -> ExerciseDB bodyPart value
     const bodyPartMap = {
       back: "back",
       knee: "upper legs",
       ankle: "lower legs",
     };
-
     const validBodyPart = bodyPartMap[area];
     if (!validBodyPart) {
       alert("Invalid selection.");
@@ -37,7 +72,7 @@ const Landing = () => {
     }
 
     const filtered = exercises.filter(
-      (ex) => ex.bodyPart.toLowerCase() === validBodyPart
+      (ex) => String(ex.bodyPart || "").toLowerCase() === validBodyPart
     );
 
     if (filtered.length === 0) {
@@ -48,9 +83,19 @@ const Landing = () => {
     const selected = filtered.sort(() => 0.5 - Math.random()).slice(0, 5);
 
     if (user && selected.length > 0) {
-      const ids = selected.map((ex) => String(ex.id)); 
-      await savePainArea(user.uid, area);
-      await saveRoutine(user.uid, area, ids);
+      const ids = selected.map((ex) => String(ex.id));
+      try {
+        // Persist choice so it sticks next visit
+        if (typeof savePainArea === "function") {
+          await savePainArea(user.uid, area);
+        }
+        await saveRoutine(user.uid, area, ids);
+      } catch {
+        // even if Firebase fails, we still have localStorage
+      }
+      navigate(`/routine/${area}`);
+    } else {
+      // Not signed in: still navigate using the selection, area persists via localStorage
       navigate(`/routine/${area}`);
     }
   };
@@ -85,7 +130,17 @@ const Landing = () => {
       <SearchExercises
         setExercises={setExercises}
         bodyPart={bodyPart}
-        setBodyPart={setBodyPart}
+        setBodyPart={(bp) => {
+          setBodyPart(bp);
+          // keep localStorage in sync when tabs change
+          if (bp && bp !== "all") {
+            localStorage.setItem(LAST_AREA_KEY, bp);
+            if (user && typeof savePainArea === "function") {
+              // fire and forget; not critical if it fails
+              savePainArea(user.uid, bp).catch(() => {});
+            }
+          }
+        }}
       />
       <Exercises
         exercises={exercises}
