@@ -1,27 +1,35 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { Box, Typography, Button, Stack } from '@mui/material';
 import { Link } from 'react-router-dom';
 
-const cap = (s) => (s ? String(s).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()) : '');
+const cap = (s) =>
+  s ? String(s).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : '';
 
 const ExerciseCard = ({ exercise }) => {
-  if (!exercise) return null;
-
+  // ✅ Hooks must be called unconditionally
   const [imgError, setImgError] = useState(false);
 
-  // Ensure HTTPS to avoid mixed‑content blocking on Vercel
+  // Safely read props (exercise may be null/undefined)
+  const rawUrl = exercise?.gifUrl ?? '';
   const safeGifUrl = useMemo(() => {
-    const url = exercise.gifUrl || '';
-    return url.startsWith('http://') ? url.replace(/^http:\/\//, 'https://') : url;
-  }, [exercise.gifUrl]);
+    return rawUrl.startsWith('http://') ? rawUrl.replace(/^http:\/\//, 'https://') : rawUrl;
+  }, [rawUrl]);
 
-  const id = exercise.id ?? exercise._id ?? '';
-  const name = cap(exercise.name || 'Exercise');
-  const bodyPart = cap(exercise.bodyPart || '');
-  const target = cap(exercise.target || '');
+  const id = exercise?.id ?? exercise?._id ?? '';
+  const name = cap(exercise?.name || 'Exercise');
+  const bodyPart = cap(exercise?.bodyPart || '');
+  const target = cap(exercise?.target || '');
+
+  // You can still early-return AFTER hooks run
+  if (!exercise) return null;
 
   return (
-    <Link className="exercise-card" to={`/exercise/${id}`} style={{ textDecoration: 'none' }}>
+    <Link
+      className="exercise-card"
+      to={`/exercise/${id}`}
+      style={{ textDecoration: 'none' }}
+      aria-label={`Open details for ${name}`}
+    >
       <Box
         sx={{
           width: 260,
@@ -41,7 +49,6 @@ const ExerciseCard = ({ exercise }) => {
           },
         }}
       >
-        {/* Image / Fallback */}
         {!imgError && safeGifUrl ? (
           <img
             src={safeGifUrl}
@@ -75,10 +82,10 @@ const ExerciseCard = ({ exercise }) => {
           </Box>
         )}
 
-        {/* Tags */}
         <Stack direction="row" spacing={1} justifyContent="center" mt={1.25} mb={1}>
           {bodyPart && (
             <Button
+              aria-label={`Body part ${bodyPart}`}
               sx={{
                 backgroundColor: '#ffa9a9',
                 color: '#fff',
@@ -96,6 +103,7 @@ const ExerciseCard = ({ exercise }) => {
           )}
           {target && (
             <Button
+              aria-label={`Target ${target}`}
               sx={{
                 backgroundColor: '#fcc757',
                 color: '#fff',
@@ -113,11 +121,9 @@ const ExerciseCard = ({ exercise }) => {
           )}
         </Stack>
 
-        {/* Name */}
         <Typography
           mt="10px"
           fontWeight="bold"
-          textTransform="none"
           sx={{
             color: '#222',
             display: '-webkit-box',
@@ -134,4 +140,4 @@ const ExerciseCard = ({ exercise }) => {
   );
 };
 
-export default ExerciseCard;
+export default memo(ExerciseCard);
