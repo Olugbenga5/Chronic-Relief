@@ -11,7 +11,6 @@ const HEADERS = () => ({
 const slugify = (s = "") =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-// ---------- small safety heuristics ----------
 function buildSafety(bodyPart, target, equipment) {
   const bp = (bodyPart || "").toLowerCase();
   const t = (target || "").toLowerCase();
@@ -77,7 +76,6 @@ function buildDescription(item) {
   return `A ${item.name}${equipment}${target}.`;
 }
 
-// ---------- RapidAPI helpers ----------
 async function fetchByName(q) {
   const url = `${BASE}/exercises/name/${encodeURIComponent(q)}`;
   const r = await fetch(url, { headers: HEADERS() });
@@ -92,7 +90,6 @@ async function fetchByBodyPart(part, limit = 25) {
   return data.slice(0, limit);
 }
 
-// ---------- canonical “must have” staples (fallback if API misses them) ----------
 const STAPLES = [
   {
     name: "Pull-Up",
@@ -196,7 +193,6 @@ const STAPLES = [
   },
 ];
 
-// Build a Firestore‑ready doc from an ExerciseDB item
 function toDocFromAPI(it) {
   const targetAreas = toTargetAreas(it);
   const { helpsWith, mayAggravate, safetyNotes } = buildSafety(
@@ -237,7 +233,6 @@ function toDocFromStaple(s) {
     instructions: s.description,
   };
   const base = toDocFromAPI(it);
-  // Merge in our curated aliases and keep them unique
   base.aliases = [...new Set([...(base.aliases || []), ...(s.aliases || [])])];
   return base;
 }
@@ -252,7 +247,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) Try to fetch a helpful spread from the API
     const staplesToTry = [
       "pull up", "chin up", "push up", "plank",
       "bodyweight squat", "walking lunge", "glute bridge",
@@ -280,7 +274,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2) Transform API hits
     const bySlug = new Map();
     for (const it of fetched) {
       if (!it?.name) continue;
@@ -289,20 +282,18 @@ export default async function handler(req, res) {
       bySlug.set(id, toDocFromAPI(it));
     }
 
-    // 3) Force‑ensure canonical staples exist (fallback if API didn’t return them)
     for (const s of STAPLES) {
       const id = slugify(s.name);
       if (!bySlug.has(id)) {
         bySlug.set(id, toDocFromStaple(s));
       } else {
-        // Merge extra aliases into any API version that happened to exist
+        // Merge extra aliases into any API version that exist
         const existing = bySlug.get(id);
         existing.aliases = [...new Set([...(existing.aliases || []), ...(s.aliases || [])])];
         bySlug.set(id, existing);
       }
     }
 
-    // 4) Upsert everything
     const writer = db.bulkWriter();
     for (const [id, doc] of bySlug.entries()) {
       writer.set(db.collection("exercise_glossary").doc(id), doc, { merge: true });

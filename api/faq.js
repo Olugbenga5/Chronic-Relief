@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const question = String(body.question || "").slice(0, 500).trim();
   if (!question) return res.status(400).json({ error: "Missing question" });
 
-  // Optional: verify Firebase ID token
+  // Firebase ID token
   let userId = null;
   try {
     const authz = req.headers.authorization || "";
@@ -43,10 +43,9 @@ export default async function handler(req, res) {
       userId = decoded.uid;
     }
   } catch (e) {
-    // token invalid/expired – continue anonymously
   }
 
-  // --- 1) Get answer from OpenAI ---
+  //  Get answer from OpenAI 
   let answer = "Sorry, I don’t have an answer for that yet.";
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -79,7 +78,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "FAQ service error (OpenAI)." });
   }
 
-  // --- 2) Log to Firestore (don’t block the user if logging fails) ---
   try {
     await db.collection("faq_logs").add({
       userId,

@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 import { auth } from "../firebase";
 
-// Preloaded suggestions (tweak to fit your app)
 const SUGGESTED = [
   {
     title: "Getting started",
@@ -48,13 +47,11 @@ const SUGGESTED = [
   },
 ];
 
-// Simple heuristic: is this a definition/technique question?
 function isDefinitionQuestion(text) {
   const t = text.trim().toLowerCase();
   return /^(what is|how (to|do) (do|perform)|form|technique)\b/.test(t);
 }
 
-// Try to extract an exercise name from “what is …”
 function extractNameFromQuestion(text) {
   const m = text.match(/^what is\s+(.+?)\?*$/i);
   return (m && m[1]) ? m[1].trim() : text.trim();
@@ -78,7 +75,6 @@ export default function FaqAsk() {
     try {
       const idToken = await auth.currentUser?.getIdToken?.();
 
-      // 1) Handle “what is / form / technique” using the glossary-backed endpoint
       if (isDefinitionQuestion(prompt)) {
         const nameOrSlug = extractNameFromQuestion(prompt);
         const r = await fetch("/api/exercise", {
@@ -97,10 +93,8 @@ export default function FaqAsk() {
           setTimeout(() => answerRef.current?.focus(), 0);
           return;
         }
-        // If /api/exercise failed (404 or other), fall through to /api/faq.
       }
 
-      // 2) Default: ask general FAQ endpoint
       const r = await fetch("/api/faq", {
         method: "POST",
         headers: {
@@ -141,7 +135,6 @@ export default function FaqAsk() {
     try {
       await navigator.clipboard.writeText(a);
     } catch {
-      /* no-op */
     }
   };
 
@@ -202,7 +195,6 @@ export default function FaqAsk() {
           ))}
         </Stack>
 
-        {/* Ask row */}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2}>
           <TextField
             fullWidth
@@ -242,7 +234,6 @@ export default function FaqAsk() {
 
         <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.12)" }} />
 
-        {/* Answer */}
         <Box
           ref={answerRef}
           tabIndex={-1}

@@ -2,7 +2,6 @@
 import OpenAI from "openai";
 import { db } from "./firebaseAdmin";
 
-// ---------- helpers ----------
 function toSlug(s = "") {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -20,7 +19,6 @@ function buildVariants(s = "") {
   return uniq([lower, hyph, nosp, dehy]);
 }
 
-// 10‑minute in‑memory cache (per warm lambda)
 const cache = new Map();
 const CACHE_TTL = 10 * 60 * 1000;
 function setCache(k, v) { cache.set(k, { v, t: Date.now() }); }
@@ -54,7 +52,6 @@ function fallbackAnswer(ex) {
   return bullets.join("\n");
 }
 
-// ---------- main handler ----------
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -82,10 +79,8 @@ export default async function handler(req, res) {
     const slug = toSlug(nameOrSlug);
     const variants = buildVariants(nameOrSlug);    // ["pull up", "pull-up", "pullup", "pull up"...]
 
-    // ---------- 1) direct doc id ----------
     let snap = await db.collection("exercise_glossary").doc(slug).get();
 
-    // ---------- 2) exact name match ----------
     if (!snap.exists) {
       const q = await db.collection("exercise_glossary")
         .where("name", "==", nameOrSlug)
@@ -93,8 +88,7 @@ export default async function handler(req, res) {
       if (!q.empty) snap = q.docs[0];
     }
 
-    // ---------- 3) alias array-contains ----------
-    // we try several alias variants to maximize success with your seeder's aliases
+    // we try several alias variants to maximize success with the seeder's aliases
     if (!snap.exists) {
       for (const v of variants) {
         const q = await db.collection("exercise_glossary")
@@ -104,7 +98,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // ---------- 4) smart fallback over a capped batch (<= 1000) ----------
     if (!snap.exists) {
       const want = norm(nameOrSlug);
       const batch = await db.collection("exercise_glossary").limit(1000).get();
@@ -117,7 +110,6 @@ export default async function handler(req, res) {
         return false;
       });
 
-      // if still nothing, try a very light partial "contains" on normalized strings
       if (!hit) {
         hit = batch.docs.find(d => {
           const data = d.data() || {};
@@ -147,13 +139,11 @@ export default async function handler(req, res) {
 
     const ex = snap.data();
 
-    // cache hit?
     const cached = getCache(`ans:${snap.id}`);
     if (cached) {
       return res.status(200).json({ ok: true, answer: cached, data: ex, id: snap.id, cached: true });
     }
 
-    // ---------- build the answer (OpenAI optional) ----------
     let answer;
     if (!process.env.OPENAI_API_KEY) {
       answer = fallbackAnswer(ex);
@@ -181,7 +171,6 @@ export default async function handler(req, res) {
         });
         answer = (resp.output_text || "").trim() || fallbackAnswer(ex);
       } catch (e) {
-        // Any OpenAI error → safe fallback
         answer = fallbackAnswer(ex);
       }
     }
