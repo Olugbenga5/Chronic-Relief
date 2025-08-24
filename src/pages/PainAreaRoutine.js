@@ -1,25 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Box,
-  Typography,
-  Button,
-  LinearProgress,
-  Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
+import {Box,Typography,Button,LinearProgress,Stack,Dialog,DialogTitle,DialogContent,DialogActions,} from "@mui/material";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
-import {
-  getRoutine,
-  getProgress,
-  saveProgress,
-  saveRoutine,
-  saveHistoryEntry,
-} from "../firebaseHelper";
+import {getRoutine,getProgress,saveProgress,saveRoutine,saveHistoryEntry,} from "../firebaseHelper";
 import { fetchData, exerciseOptions } from "../services/fetchData";
 import ExerciseCard from "../components/ExerciseCard";
 import Loader from "../components/Loader";
@@ -73,7 +57,7 @@ const getChronicPool = async () => {
 };
 
 const PainAreaRoutine = () => {
-  const { area } = useParams(); // 'back' | 'knee' | 'ankle'
+  const { area } = useParams(); 
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);

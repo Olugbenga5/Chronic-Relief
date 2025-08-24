@@ -1,4 +1,3 @@
-// /api/exercise.js
 import OpenAI from "openai";
 import { db } from "./firebaseAdmin";
 
@@ -58,7 +57,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // parse body (works with raw body on Vercel)
   let body = req.body;
   if (!body || typeof body !== "object") {
     const raw = await new Promise((resolve, reject) => {
@@ -88,7 +86,6 @@ export default async function handler(req, res) {
       if (!q.empty) snap = q.docs[0];
     }
 
-    // we try several alias variants to maximize success with the seeder's aliases
     if (!snap.exists) {
       for (const v of variants) {
         const q = await db.collection("exercise_glossary")
@@ -102,7 +99,6 @@ export default async function handler(req, res) {
       const want = norm(nameOrSlug);
       const batch = await db.collection("exercise_glossary").limit(1000).get();
 
-      // exact normalized match on name or aliases
       let hit = batch.docs.find(d => {
         const data = d.data() || {};
         if (norm(data.name) === want) return true;

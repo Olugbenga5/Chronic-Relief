@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Box, Typography, Stack, Select, MenuItem, Button, Divider, TextField,
-} from "@mui/material";
+import {Box, Typography, Stack, Select, MenuItem, Button, Divider, TextField,} from "@mui/material";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
-import {
-  ensureUserDoc, getUserDoc, getRoutineHistoryCount,
-  updateSelectedArea, resetAppData, deleteAccountFully
-} from "../firebaseHelper";
+import {ensureUserDoc, getUserDoc, getRoutineHistoryCount,updateSelectedArea, resetAppData, deleteAccountFully} from "../firebaseHelper";
 
 const AREAS = ["back", "knee", "ankle"];
 

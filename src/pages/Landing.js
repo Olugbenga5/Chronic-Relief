@@ -16,7 +16,6 @@ const Landing = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // Keep track of auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser || null);
@@ -24,22 +23,18 @@ const Landing = () => {
     return () => unsubscribe();
   }, []);
 
-  // Hydrate the last selected area from localStorage on first mount
   useEffect(() => {
     const last = localStorage.getItem(LAST_AREA_KEY);
     if (last) setBodyPart(last);
   }, []);
 
   const handleSelectArea = async (area) => {
-    // Update UI + persist
     setBodyPart(area);
     localStorage.setItem(LAST_AREA_KEY, area);
     if (user) {
-      // fire-and-forget; don’t block UX if this fails
       savePainArea(user.uid, area).catch(() => {});
     }
 
-    // Map UI area -> ExerciseDB bodyPart for quick client-side pick
     const bodyPartMap = {
       back: "back",
       knee: "upper legs",
@@ -56,8 +51,6 @@ const Landing = () => {
       (ex) => String(ex.bodyPart || "").toLowerCase() === validBodyPart
     );
     if (filtered.length === 0) {
-      // It's okay if nothing is loaded yet—the routine page can generate/fetch.
-      // We still navigate so the user flow continues smoothly.
       navigate(`/routine/${area}`);
       return;
     }
@@ -69,14 +62,12 @@ const Landing = () => {
         const ids = selected.map((ex) => String(ex.id));
         await saveRoutine(user.uid, area, ids);
       } catch {
-        // ignore save errors here; routine page can regenerate
       }
     }
 
     navigate(`/routine/${area}`);
   };
 
-  // Wrapper so SearchExercises tab changes also persist the choice
   const setBodyPartAndPersist = (bp) => {
     setBodyPart(bp);
     if (bp && bp !== "all") {

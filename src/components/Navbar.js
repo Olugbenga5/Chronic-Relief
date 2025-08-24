@@ -1,4 +1,3 @@
-// Navbar.js
 import React, { useEffect, useState, useMemo } from "react";
 import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
 import {

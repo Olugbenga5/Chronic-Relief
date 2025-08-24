@@ -1,4 +1,3 @@
-// api/faq.js
 import OpenAI from "openai";
 import { db, adminAuth } from "./firebaseAdmin";
 
@@ -14,7 +13,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Server misconfigured (OPENAI_API_KEY)." });
   }
 
-  // Parse body (works whether Vercel parsed it or not)
   let body = req.body;
   if (!body || typeof body !== "object") {
     try {
@@ -50,7 +48,6 @@ export default async function handler(req, res) {
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // Use chat.completions for widest compatibility with SDKs
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.2,
@@ -71,7 +68,6 @@ export default async function handler(req, res) {
   } catch (e) {
     const msg = e?.response?.data?.error?.message || e?.message || String(e);
     console.error("OpenAI error:", msg);
-    // If OpenAI failed, we still return a 500 to the client
     if (String(msg).includes("429")) {
       return res.status(429).json({ error: "We’re getting a lot of questions. Try again soon." });
     }

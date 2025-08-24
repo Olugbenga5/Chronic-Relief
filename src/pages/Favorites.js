@@ -14,14 +14,14 @@ const resolveRapidKey = () =>
 
 const IMAGE_RESOLUTION = "360"; // 180 | 360 | 720 | 1080
 
-// Build a display-safe image src; prefer dataset GIFs, else RapidAPI /image
+// Build a display-safe image src
 const computeImageSrc = (ex, rapidKey) => {
   const url = ex?.gifUrl || "";
   // If gifUrl is from dataset (NOT the RapidAPI /image domain), use it
   if (url && !String(url).includes("exercisedb.p.rapidapi.com/image")) {
     return url;
   }
-  // Else rebuild the RapidAPI /image link using the saved id + your key
+  // Else rebuild the RapidAPI /image link using the saved id 
   if (ex?.id && rapidKey) {
     return `https://exercisedb.p.rapidapi.com/image?exerciseId=${encodeURIComponent(
       ex.id

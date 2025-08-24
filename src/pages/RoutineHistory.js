@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Typography,
-  CircularProgress,
-  Box,
-} from "@mui/material";
+import {Accordion,AccordionSummary,AccordionDetails,Typography,CircularProgress,Box,} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
@@ -25,7 +18,6 @@ function pad4(s) {
 }
 function normalizeIdForApi(id) {
   const raw = String(id || "");
-  // If it starts with a letter, keep as-is; otherwise pad to 4 digits
   return /^[A-Za-z]/.test(raw) ? raw : pad4(raw);
 }
 function addNameKeys(map, id, name) {
@@ -51,20 +43,16 @@ const RoutineHistory = () => {
 
       try {
         setLoading(true);
-
-        // 1) Load user history + bulk exercise catalog
         const [rawHistory, allExercises] = await Promise.all([
           fetchRoutineHistory(currentUser.uid),
           fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions),
         ]);
 
-        // 2) Build lookup that matches raw, de-zeroed, and padded IDs
         const nameById = new Map();
         (allExercises || []).forEach((ex) =>
           addNameKeys(nameById, ex?.id, ex?.name)
         );
 
-        // 3) First pass: map names, collect missing IDs
         const missingIds = new Set();
         const prelim = (rawHistory || []).map((entry) => {
           const names = (entry.exerciseIds || []).map((id) => {
@@ -79,12 +67,11 @@ const RoutineHistory = () => {
           return { ...entry, exerciseNames: names };
         });
 
-        // 4) Fetch truly missing IDs (now using padded 4-digit IDs)
         if (missingIds.size > 0) {
           const fetched = await Promise.all(
             Array.from(missingIds).map(async (idStr) => {
               try {
-                const apiId = normalizeIdForApi(idStr); // <-- KEY FIX
+                const apiId = normalizeIdForApi(idStr); 
                 const ex = await fetchData(
                   `${EXDB}/exercises/exercise/${encodeURIComponent(apiId)}`,
                   exerciseOptions
@@ -98,7 +85,6 @@ const RoutineHistory = () => {
             })
           );
 
-          // 5) Second pass: replace “Unknown ID” where we now have names
           const fetchedMap = new Map(
             fetched.filter((f) => f.name).map((f) => [f.idStr, f.name])
           );

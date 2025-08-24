@@ -1,4 +1,3 @@
-// /api/seedFromExerciseDB.js
 import { db } from "./firebaseAdmin";
 
 const API_HOST = "exercisedb.p.rapidapi.com";
@@ -222,7 +221,6 @@ function toDocFromAPI(it) {
   };
 }
 
-// Build a Firestore‑ready doc from our fallback staple map
 function toDocFromStaple(s) {
   const it = {
     name: s.name,
@@ -287,7 +285,6 @@ export default async function handler(req, res) {
       if (!bySlug.has(id)) {
         bySlug.set(id, toDocFromStaple(s));
       } else {
-        // Merge extra aliases into any API version that exist
         const existing = bySlug.get(id);
         existing.aliases = [...new Set([...(existing.aliases || []), ...(s.aliases || [])])];
         bySlug.set(id, existing);

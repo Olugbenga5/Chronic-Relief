@@ -8,10 +8,7 @@ const EXDB = 'https://exercisedb.p.rapidapi.com';
 // What users click in the horizontal scrollbar
 const CHRONIC_BODY_PART_LABELS = ['All', 'Back', 'Knee', 'Ankle'];
 
-/**
- * Map “focus areas” -> actual ExerciseDB fields.
- * We match by bodyPart OR target so we catch more relevant moves.
- */
+
 const CHRONIC_MATCHES = {
   back: {
     bodyParts: ['back', 'lower back'],
@@ -48,11 +45,9 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
     const load = async () => {
       setLoading(true);
       try {
-        // Try bulk first
         const bulk = (await fetchData(`${EXDB}/exercises?limit=1500`, exerciseOptions)) || [];
         let pool = Array.isArray(bulk) ? bulk : [];
 
-        // If bulk is capped/small, fetch the sets we care about and dedupe
         if (pool.length < 50) {
           const [back, upperLegs, lowerLegs] = await Promise.all([
             fetchByBodyPart('back'),
@@ -75,7 +70,7 @@ const SearchExercises = ({ setExercises, bodyPart, setBodyPart }) => {
 
         if (!alive) return;
         setAllChronic(chronic);
-        setExercises(chronic); // “All”
+        setExercises(chronic); 
       } catch (e) {
         if (!alive) return;
         console.error('Failed to load exercises:', e);

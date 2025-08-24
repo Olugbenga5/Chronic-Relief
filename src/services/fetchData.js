@@ -1,6 +1,4 @@
-// src/services/fetchData.js
 import axios from 'axios';
-
 const KEY = process.env.REACT_APP_RAPID_API_KEY;
 
 export const exerciseOptions = {

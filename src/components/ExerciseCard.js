@@ -16,7 +16,6 @@ const ExerciseCard = ({ exercise }) => {
   const equipment = cap(exercise?.equipment || "");
   const gifUrl = exercise?.gifUrl || ""; 
 
-  // Env key (supports Vite and CRA)
   const rapidKey =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_RAPID_API_KEY) ||
     process.env.REACT_APP_RAPID_API_KEY ||

@@ -31,7 +31,6 @@ const FavoriteButton = ({ exercise }) => {
     }
     setBusy(true);
     try {
-      // Build a clean payload: avoid storing RapidAPI /image URL
       const clean = {
         id: String(exercise.id),
         name: exercise.name || "",
@@ -42,7 +41,7 @@ const FavoriteButton = ({ exercise }) => {
           exercise.gifUrl &&
           !String(exercise.gifUrl).includes("exercisedb.p.rapidapi.com/image")
             ? exercise.gifUrl
-            : "", // leave empty if it's the RapidAPI /image url; we'll compute at render time
+            : "", 
       };
 
       const nowFav = await toggleFavorite(uid, clean);
